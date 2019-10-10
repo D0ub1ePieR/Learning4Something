@@ -68,6 +68,42 @@
 
     * 目标和源视角间没有遮挡和非遮挡情况
 
-    * 表面是lambertian，使得光一致性误差具有一定的意义  
+    * 表面是朗伯体`lambertian`，使得光一致性误差具有一定的意义  
 
-    为了提升鲁棒性，与深度和位姿网络一同训练一个可解释性的预测网络，其输出一个逐像素的soft mask $\hat E_s$对每一个目target-source对，展示对每个像素合成成功的概率
+    为了提升鲁棒性，与深度和位姿网络一同训练一个可解释性的预测网络，其输出一个逐像素的soft mask $\hat E_s$对每一个目target-source对，展示对每个像素合成成功的概率。视角合成任务目标Loss可以表示为:
+    $$L_{v\ s} = \sum_{<I_1,\ldots,I_n>\in S}\sum_p\hat E_s(p)|I_t(p) - \hat I_s(p)|$$
+
+    但是对于置信度没有明确的直接监督,使用上述监督会使网络预测 $\hat E_s$ **始终为0**。于是需要添加一个正则化项 $L_{reg}(\hat E_s)$,以在每个像素位置用常数标签1最小化交叉熵损失来产生非零的预测。
+
+  + 克服梯度局限性
+
+    以上流程梯度仅来自于 $I(p_t)以及I(p_s)的周围四个像素$，于是当通过GT的深度和位姿投影后的 $p_s$**与当前预测距离很远** 或是落在 **低纹理的区域** 则会抑制训练过程(*一个运动估计中很著名的问题*)。根据经验有两种策略：
+
+    * 在深度网络中使用一个带有*小瓶颈层*的卷积编解码结构  
+
+      隐式得使全局输出平滑并使梯度从有意义的区域传播到相邻区域
+
+    * 显式多尺度和平滑损失  TODO
+      > Unsupervised CNN for single view depth estimation: Geometry to the rescue  
+        Unsupervised monocular depth estimation with left-right consistency
+
+      这允许了梯度较大的空间区域直接产生  
+
+    文中使用了第二种策略，他对框架的选择更不敏感。为了平滑度，最小化为了预测深度图的二阶梯度的L1范数 TODO
+    > SfM-Net: Learning of structure and motion from video
+
+    最终得到的Loss为：
+    $$L_{final} = \sum_lL^l_{v s}+\lambda_sL^l_{smooth}+\lambda_e\sum_sL_{reg}(\hat E^l_s)$$
+    > l为不同尺度图像上的索引，s为源图像上的索引，$\lambda_s与\lambda_s$分别为深度平滑损失和可解释性正则化的权重
+
+  + 网络结构
+
+    * 单视角深度
+
+      DispNet结构基于跳连接和多尺度预测的编解码设计
+      
+      <cneter><img src='./imgs/unsupervised-cvpr17-network1.png'/></center>
+
+    * 位姿
+
+    * Explainability mask
