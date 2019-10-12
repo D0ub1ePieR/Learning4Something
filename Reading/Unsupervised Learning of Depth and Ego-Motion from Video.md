@@ -16,7 +16,7 @@
 
   + 现有系统问题  --  一个几何视角合成系统只有在对于场景的几何和相机姿态的中间预测相对于*真实的物理场景*相匹配时才能表现得好，尽管不完美的几何或姿态估计可以对某些场景(如无纹理)用*似乎合理的合成视图*进行欺骗，但是如果呈现出另外一组布局和外观结构更加多样的场景，相同的模型将还原失败。因此**网络需要学习深度和相机姿态估计**的中间任务。
 
-  + 数据集  --  KITTI
+  + 数据集  --  KITTI、Make3D
 
 #### 相关工作  **[TODO]**
 
@@ -100,10 +100,39 @@
 
     * 单视角深度
 
-      DispNet结构基于跳连接和多尺度预测的编解码设计
-      
-      <cneter><img src='./imgs/unsupervised-cvpr17-network1.png'/></center>
+      DispNet结构基于*跳连接*和*多尺度预测*的编解码设计，卷积层大小的*增加*或*减少*因子都为2。除前四层的**核大小**为7,7,7,5,其余**卷积核大小**均为3。第一层**卷积输出通道**为32。除预测层外所有卷积层后都是用ReLU激活，预测层使用 $1/(\alpha * sigmoid(x) + \beta)$ 其中 $\alpha=10,\beta=0.01$，使其预测的深度始终为正且在一个可约定的范围内。
+      > 尝试将多视角图像输入至深度网络中，但这并没有提升预测的效果。  
+      DeMoN: Depth and motion network for learning monocular stereo 也得到这样的结果并提出需要使用光流的约束来使用多视角。
+
+      <center><img src='./imgs/unsupervised-cvpr17-network1.png'/></center>
 
     * 位姿
 
+      *输入*: 目标视角和所有源视角，*输出*:  视角间转换的相关位姿。  
+
+      网络包含七个步长为2并后面跟着1\*1卷积层的卷积层，最终有6\*(N-1)个通道输出`每个视角间3个欧拉角和3D平移参数`，最后全局平均池化被用于所有空间位置的综合预测。除最后一层外所有卷积层都是用ReLU激活。
+
     * Explainability mask
+
+      与姿态预测网络共享了前五层，随后加上五个带有多尺度预测的反卷积层。每一个预测层输出有2\*(N-1)个通道，利用softmax对每两个通道进行归一化，得到对应源-目标对的可解释性预测。
+
+  + 实验
+
+    对上述Loss中 $\lambda_s=0.5/l\ \ (l为对应尺度的降尺度因子)，\lambda_e=0.2$。使用Batch normalizztion，Adam优化中 $\beta_1=0.9,\beta_2=0.999$ ,学习率设置为0.0002，mini-batch为4，进行15W次迭代。视频在训练时被resize到128*416.
+
+    <center><img src='./imgs/unsupervised-cvpr17-exp1.png'/></center>
+
+    深度预测网络首先在较大的数据集Cityscapes上进行训练，随后在KITTI上进行微调，得到以上结果效果得到轻微的改善。下表由本文的无监督方法与多个有监督方法进行比较。*效果不及使用左右循环一致性损失训练的Godard方法*。表中还包含了对explainability mask的消融实验，其只得到了部分的提升可能因为：
+      * KITTI大部分场景是静止的，没有明显的运动场景
+      * 遮挡只会出现在较短时间序列中的小范围区域 *会使得这个模块不能够被成功得训练*
+
+    <center><img src='./imgs/unsupervised-cvpr17-exp2.png'/></center>
+    <center><img src='./imgs/unsupervised-cvpr17-exp3.png'/></center>
+
+    相比发现本文方法可以保持深度边界和薄结构，如树木和街灯更好。
+
+    <center><img src='./imgs/unsupervised-cvpr17-exp4.png'/></center>
+
+    在KITTI数据集上对仅在CS数据集训练的模型和CS+KITTI训练的模型进行比较，可以发现仅在CS的模型会经常产生结构性的错误，例如车身上的洞。随后直接将模型使用至在训练中没有出现的数据集Make3D中，可以发现与现有有监督学习的结果有一定的差距
+
+    <center><img src='./imgs/unsupervised-cvpr17-exp5.png'/></center>
