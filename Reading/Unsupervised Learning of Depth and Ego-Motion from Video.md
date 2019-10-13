@@ -140,10 +140,12 @@
     但是本文方法能够将全局结构较好得恢复
     <center><img src='./imgs/unsupervised-cvpr17-exp5.png'/></center>
 
-    对于姿态预测网络，使用KITTI给出的11组由真实场景下IMU/GPS测量得到的数据，将输入图像序列设置成五帧，与两个变种的单目ORB-SLAM比较。结果由绝对轨迹错误`Absolute Trajectory Error(ATE)`度量。当车辆左右旋转大小更小时，方法所得到的效果更优，比ORB-SLAM(short)更优的原因可能是因为帧间运动的学习可以作为单目SLAM系统中局部估计模块的应用。
+    对于姿态预测网络，使用KITTI给出的11组由真实场景下IMU/GPS测量得到的数据，将输入图像序列设置成五帧，与两个变种的单目ORB-SLAM比较。结果由绝对轨迹错误`Absolute Trajectory Error(ATE)`度量。当车辆左右旋转大小更小时，方法所得到的效果更优，比ORB-SLAM(short)更优的原因可能是因为帧间运动的学习可以作为单目SLAM系统中局部估计模块的应用。ORB-SLAM(short)*没有丢失后的重定位以及以关键帧的全局BA为核心力量的回环检测*
 
     <center><img src='./imgs/unsupervised-cvpr17-exp6.png'/></center>
 
     explainability mask结果展示了，对运动物体，遮挡物体的预测，也体现了深度CNN对于细小结构的缺点。
 
     <center><img src='./imgs/unsupervised-cvpr17-exp5.png'/></center>
+
+***
