@@ -56,9 +56,9 @@
     $$p_s\text{~} K\hat T_{t\rightarrow s}\hat D_t(p_t)K^{-1}p_t$$
     > <small><center>将pt转换到像素坐标系，加上深度预测乘上转移矩阵得到目标视角下像素在源视角中像素坐标系的位置，最后乘上相机内参矩阵得到源视角像素所在的相机坐标</center></small>
 
-    随后使用可微双线性采样的空间变换网络得到由
+    随后使用可微双线性采样的[空间变换网络](#STN)得到由
     $$I_t(p_t)\rightarrow I_s(p_s)\rightarrow \hat I_s(p_t)$$
-    i.e. 双线性插值`bilinear interpolation`
+    i.e.[ 双线性插值](#interpolation)`bilinear interpolation`
     $$\hat I_s(p_t)=I_s(p_s)=\Sigma_{i\in\text{{t,b}},j\in\text{{l,r}}}w^{ij}I_s(p^{ij}_s)$$
 
     <center><img src="./imgs/unsupervised-cvpr17-approach2.png"/></center>
@@ -68,7 +68,7 @@
 
     * 目标和源视角间没有遮挡和非遮挡情况
 
-    * 表面是朗伯体`lambertian`，使得光一致性误差具有一定的意义  
+    * 表面是[朗伯体](#lambertian)`lambertian`，使得光一致性误差具有一定的意义  
 
     为了提升鲁棒性，与深度和位姿网络一同训练一个可解释性的预测网络，其输出一个逐像素的soft mask $\hat E_s$对每一个目target-source对，展示对每个像素合成成功的概率。视角合成任务目标Loss可以表示为:
     $$L_{v\ s} = \sum_{<I_1,\ldots,I_n>\in S}\sum_p\hat E_s(p)|I_t(p) - \hat I_s(p)|$$
@@ -79,7 +79,7 @@
 
     以上流程梯度仅来自于 $I(p_t)以及I(p_s)的周围四个像素$，于是当通过GT的深度和位姿投影后的 $p_s$**与当前预测距离很远** 或是落在 **低纹理的区域** 则会抑制训练过程(*一个运动估计中很著名的问题*)。根据经验有两种策略：
 
-    * 在深度网络中使用一个带有*小瓶颈层*的卷积编解码结构  
+    * [在深度网络中使用一个带有*小瓶颈层*的卷积编解码结构](#google-net)  
 
       隐式得使全局输出平滑并使梯度从有意义的区域传播到相邻区域
 
@@ -149,3 +149,84 @@
     <center><img src='./imgs/unsupervised-cvpr17-exp5.png'/></center>
 
 ***
+
+### <p id='interpolation'>线性插值</p>
+
+* 单线性插值
+
+  已知数据(x0,y0)与(x1,y1)，要在[x0,x1]区间内某一位置x在直线上的y值。则
+  $$y=\frac{x_1-x}{x_1-x_0}y_0+\frac{x-x_0}{x_1-x_0}y_1$$
+  双线性插值本质上就是在*两个方向*做线性插值
+
+* 双线性插值
+
+  核心思想是在**两个方向分别进行一次线性插值**。  
+  假设需求点P=(x,y)，其周围四个点为$Q_{11}=(x_1,y_1),Q_{12}=(x_1,y_2),Q_{21}=(x_2,y_1),Q_{22}=(x_2,y_2)$
+  首先在x方向上进行线性插值，则可以得到
+  $$f(R_1)\approx\frac{x_2-x}{x_2-x_1}f(Q_{11})+\frac{x-x_1}{x_2-x_1}f(Q_{21}) \ \ R_1=(x,y_1)$$
+  $$f(R_2)\approx\frac{x_2-x}{x_2-x_1}f(Q_{12})+\frac{x-x_1}{x_2-x_1}f(Q_{22}) \ \ R_2=(x,y_2)$$
+  随后在y方向上进行线性插值，则可以得到
+  $$f(P)\approx\frac{f(Q_{11})}{(x_2-x_1)(y_2-y_1)}(x_2-x)(y_2-y)+\frac{f(Q_{21})}{(x_2-x_1)(y_2-y_1)}(x-x_1)(y_2-y)$$
+
+  综合可以得到双线性插值的结果
+  $$f(x,y)\approx\frac{f(Q_{11})}{(x_2-x_1)(y_2-y_1)}(x_2-x)(y_2-y)+\frac{f(Q_{21})}{(x_2-x_1)(y_2-y_1)}(x-x_1)(y_2-y)$$
+  $$+\frac{f(Q_{12})}{(x_2-x_1)(y_2-y_1)}(x_2-x)(y-y_1)+\frac{f(Q_{22})}{(x_2-x_1)(y_2-y_1)}(x-x_1)(y-y_1)$$
+  > 由于图像坐标系以左上角为原点(0,0)，需要将源图像和目标图像做中心对齐，以达到更好的效果。  
+    另外，在图像仿射变换中还有其他常见的插值方法如:最邻近插值，双三次插值，兰索思插值等
+
+  在由源图像向目标图像变换时很容易出现非整数数值，所以由目标图像的整数坐标反向变换至源图像，得到f(i+u,j+v)`其中i、j为整数部分，u、v为小数部分`。则该点像素值可由(i,j)、(i+1,j)、(i,j+1)、(i+1,j+1)得到。
+  $$f(i+u,j+v)=(1-u)(1-v)f(i,j)+(1-u)vf(i,j+1)+u(1-v)f(i+1,j)+uvf(i+1,j+1)$$
+
+  > 如果直接进行四舍五入不仅会导致各个坐标点的值不准确，还会在梯度下降时造成困难。
+
+***
+
+### <p id='STN'>spatial transform network</p>
+
+> Spatial Transformer Networks 提出可以使模型具有空间不变性
+
+  * 为了使模型对任务具有*尺度不变性、平移不变性、旋转不变性*。
+
+  * STN可以作为一个单独的模块，输入不仅可以为一幅图像也可以是一个网络层输出的feature map。
+
+  * 实现
+
+      <center><img src='./imgs/STN-net.png'/></center>
+
+      + 一个localisation net，输入$U\in R^{H*W*C}$，输出 $\Theta={a,b,c,d,e,f}$ 在仿射变换中的变量,即旋转以及平移参数。
+
+      + 随后数一个网格生成器，由目标图坐标为自变量，$\Theta$为参数得到输入图中的坐标点
+
+      <center><img src='./imgs/STN-net2.png'/></center>
+
+      + 最后进入一个采样器，对扭曲后的图像进行填充。
+
+***
+
+### <p id='lambertian'>lambertian反射</p>
+
+  **理想散射**，在一个固定的照明分布下从所有的视场方向上观测都具有相同的亮度，不吸收任何*入射光*，也可以成为**散光反射**。不管照明分布如何，lambertian表面在所有的表面方向上接受并散发所有的入射照明。
+
+  $$surfacecolor \ = \ Emissive \ + \ Ambient \ + \ Diffuse \ + \ Specular$$
+  $$最终表面 \ = \ 放射光 \ + \ 环境光 \ + \ 漫反射 \ + \ 镜面反射$$
+
+***
+
+### <p id='google-net'>Bottleneck</p>
+
+  > Going Deeper with Convolutions 中google提出了第一个inception结构
+
+  受NIN`MLPconv`的启发,为了减少每一层的特征过滤器的数目，从而减少运算量。使用了1*1的卷积块减少特征数量。一般被称为**瓶颈层**。*inception模块保证了网络深度和宽度增加的同时减少了参数*，增加了网络对尺度的适应性。
+
+  随后谷歌团队还提出v1-v4版本的inception模块
+  * v2  -  Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift
+
+    **batch-normalized inception** 被引入
+
+  * v3  -  Rethinking the Inception Architecture for Computer Vision
+
+    平衡了深度和宽度，当深度增加时，在前往下一层之前**增加特征的结合**。只是用3\*3的卷积，5\*5和7\*7的卷积核能分成多个3*3的卷积核
+
+  * v4
+
+    将**inception模块**和**resnet模块**相结合
