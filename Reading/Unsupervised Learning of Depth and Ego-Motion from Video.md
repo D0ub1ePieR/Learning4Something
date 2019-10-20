@@ -83,16 +83,25 @@
 
       隐式得使全局输出平滑并使梯度从有意义的区域传播到相邻区域
 
-    * 显式多尺度和平滑损失  TODO
-      > Unsupervised CNN for single view depth estimation: Geometry to the rescue  
-        Unsupervised monocular depth estimation with left-right consistency
+    * 显式多尺度和平滑损失  
+      > **Unsupervised CNN for single view depth estimation: Geometry to the rescue**  
+        $$ E^i_{smooth}=||\nabla D^i(x)||^2$$
+      > 使用了L2正则化处理了视差不连续造成的孔径问题。
 
-      这允许了梯度较大的空间区域直接产生  
+      >  **Unsupervised monocular depth estimation with left-right consistency**  
+        $$ C^l_{ds}=\frac{1}{N}\sum_{i,j}|\partial_xd^l_{ij}|e^{-||\partial_xI^l_{ij}||}+|\partial_yd^l_{ij}|e^{-||\partial_yI^l_{ij}||} $$
+      >  鼓励在局部的平滑差异，对 $\partial d$ 的差异梯度进行L1惩罚，得到`Disparity Smoothness Loss`
 
-    文中使用了第二种策略，他对框架的选择更不敏感。为了平滑度，最小化为了预测深度图的二阶梯度的L1范数 TODO
-    > SfM-Net: Learning of structure and motion from video
+      这允许了梯度较大的空间区域直接产生.  
 
-    最终得到的Loss为：
+    文中使用了第二种策略，他对框架的选择更不敏感。为了平滑度，最小化为了预测深度图的二阶梯度的L1范数。
+    > SfM-Net: Learning of structure and motion from video  
+      通过惩罚相邻像素梯度的L1范数，在光流场、深度和推断的运动图上添加了健壮的空间平滑惩罚。对于深度预测，我们惩罚二阶梯度的范数，以鼓励不是恒定的，而是平稳变化的深度值。  
+      $\rightarrow$ Intrinsic depth: Improving depth transfer with intrinsic images
+      $$E_{spat}(D_t)=\sum_xs^x_t(x)\rho(\nabla_xD_t(x))+s^y_t(x)\rho(\nabla_yD_t(x))$$
+    > 其中 $\rho$ 中的值为水平和垂直深度梯度，$\rho(x)=\sqrt[2]{x^2+\epsilon^2},\epsilon=0.01。s^x_t和s^y_t$控制了预测深度图的平滑程度，它保证了更高的平滑程度，保证了轮廓不在图像中出现。
+
+    * 最终得到的Loss为：
     $$L_{final} = \sum_lL^l_{v s}+\lambda_sL^l_{smooth}+\lambda_e\sum_sL_{reg}(\hat E^l_s)$$
     > l为不同尺度图像上的索引，s为源图像上的索引，$\lambda_s与\lambda_s$分别为深度平滑损失和可解释性正则化的权重
 
