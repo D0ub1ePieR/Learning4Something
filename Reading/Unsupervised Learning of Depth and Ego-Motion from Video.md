@@ -18,15 +18,29 @@
 
   + 数据集  --  KITTI、Make3D
 
-#### 相关工作  **[TODO]**
+#### 相关工作  
 
   + structure from motion*从运动中恢复结构*  
-    需要依赖图像间准确的关联关系，会在低纹理、复杂的几何/光照、薄结构和遮挡等区域造成问题
+
+    现已有一条成熟的技术工具链`visualSFM、DTAM`,*而其高效和有效* 需要依赖图像间准确的关联关系，会在低纹理、复杂的几何/光照、薄结构和遮挡等区域造成问题  
+
+    目前提出了一些基于深度学习的结局方法:
+    - 特征匹配`Matchnet`
+
+    - 姿态估计`Posenet 6-DoF`
+
+    - 立体几何`Deepstereo`  
+
+    以上这些方法都可以在训练时使用**外部监督**，给问题解决带来了很大影响。
 
   + warping-based biew synthesis*基于图像变形的视角合成*  
-    通过新的照相机的观察视角合成场景,估计3D底层信息/在输入视图间建立对应关系,随后将输入视图的图像块合成新的视图
 
-  + learning single-view 3D from registered 2D views从配准的2D视图中学习单视图3D  
+    通过新的照相机的观察视角合成场景,一个经典的范例**估计3D底层信息/在输入视图间建立对应关系**,随后将输入视图的图像块合成新的视图。`大多都在05年之前的文章`  
+
+    近期方法为基于*深度和流*的*end-to-end*视角合成，`Deepstereo、Deep3D、Appearance Flows`
+
+  + learning single-view 3D from registered 2D views从配准的2D视图中学习单视图3D
+
     只是从世界的图像观测中学习，而不需要显式深度表示的训练方法
 
   + unsupervised/self-supervised learning from video*通过视频的无监督和自监督学习*  
