@@ -35,15 +35,24 @@
 
   + warping-based biew synthesis*基于图像变形的视角合成*  
 
-    通过新的照相机的观察视角合成场景,一个经典的范例**估计3D底层信息/在输入视图间建立对应关系**,随后将输入视图的图像块合成新的视图。`大多都在05年之前的文章`  
+    &emsp;&emsp;通过新的照相机的观察视角合成场景,一个经典的范例**估计3D底层信息/在输入视图间建立对应关系**,随后将输入视图的图像块合成新的视图。`大多都在05年之前的文章`  
 
-    近期方法为基于*深度和流*的*end-to-end*视角合成，`Deepstereo、Deep3D、Appearance Flows`
+    &emsp;&emsp;近期方法为基于*深度和流*的*end-to-end*视角合成，`Deepstereo、Deep3D、Appearance Flows`,在这些方法中底层的几何信息被表示成了`量化的深度平面、概率视差图、视角相关的流场`。
+
+    &emsp;&emsp;基于图像变形的视角合成不是直接构建输入到输出的图，而是学习中间预测的几何信息或关联信息。
 
   + learning single-view 3D from registered 2D views从配准的2D视图中学习单视图3D
 
-    只是从世界的图像观测中学习，而不需要显式深度表示的训练方法
+    只是从世界的图像观测中学习，而不需要显式深度表示的训练方法  
+    > Unsupervised CNN for Single View Depth Estimation: Geometry to the Rescue  
+      利用两幅校准的图像计算投影误差  
+      Unsupervised Monocular Depth Estimation with Left-Right Consistency
+      左右一致性约束
+
 
   + unsupervised/self-supervised learning from video*通过视频的无监督和自监督学习*  
+
+    在视频数据中学到通用特征需要一个*pretext task*，最终用于类似目标检测和语义分割的任务中。这些pretext task会包括自运动估计、追踪、时间相干性、时序验证和目标运动掩码预测等等。
 
 #### 本文方法
 
