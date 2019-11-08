@@ -2,6 +2,10 @@
 * [PCA](#PCA)
 * [线性插值](#interpolation)
 * [空间变换网络](#STN)
+* [L1、L2正则化以及L1、L2 loss](#l1l2)
+* [Bottleneck](#google-net)
+* [lambertian](#lambertian反射)
+* [膨胀与腐蚀](#dilation&erosion)
 + [other](#other)
 
 ***
@@ -9,11 +13,8 @@
 ## TODO
   * 图卷积
   * GAN
-  * 线性插值
   * Link-cut tree
-  * spatial transform network
   * 交叉熵
-  * 卷积瓶颈层
 
 ***
 
@@ -204,3 +205,72 @@
 * 内部资源使用类似**POSIX**的语法进行访问(*/path/to/source*)
 * 使用B-tree来索引表格对象，非常适合时间序列的数据
 * 类似python字典，有data和label部分
+
+***
+### <p id='lambertian'>lambertian反射</p>
+
+  **理想散射**，在一个固定的照明分布下从所有的视场方向上观测都具有相同的亮度，不吸收任何*入射光*，也可以成为**散光反射**。不管照明分布如何，lambertian表面在所有的表面方向上接受并散发所有的入射照明。
+
+  $$surfacecolor \ = \ Emissive \ + \ Ambient \ + \ Diffuse \ + \ Specular$$
+  $$最终表面 \ = \ 放射光 \ + \ 环境光 \ + \ 漫反射 \ + \ 镜面反射$$
+
+***
+
+### <p id='google-net'>Bottleneck</p>
+
+  > Going Deeper with Convolutions 中google提出了第一个inception结构
+
+  受NIN`MLPconv`的启发,为了减少每一层的特征过滤器的数目，从而减少运算量。使用了1*1的卷积块减少特征数量。一般被称为**瓶颈层**。*inception模块保证了网络深度和宽度增加的同时减少了参数*，增加了网络对尺度的适应性。
+
+  随后谷歌团队还提出v1-v4版本的inception模块
+  * v2  -  Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift
+
+    **batch-normalized inception** 被引入
+
+  * v3  -  Rethinking the Inception Architecture for Computer Vision
+
+    平衡了深度和宽度，当深度增加时，在前往下一层之前**增加特征的结合**。只是用3\*3的卷积，5\*5和7\*7的卷积核能分成多个3*3的卷积核
+
+  * v4
+
+    将**inception模块**和**resnet模块**相结合
+
+***
+
+### <p id='l1l2'>L1、L2正则化以及L1、L2 loss</p>
+
+  * L1正则化可以使参数稀疏化，得到的参数是一个*稀疏矩阵*，可用于特征选择
+
+  $$\Omega(\theta)=||w||_ 1=\sum_i|w_i|\tag{l1-norm}$$
+  $$J=J_0+\lambda\sum_w|w|\tag{l1-loss}$$  
+
+  即为原始损失加上正则化项, 并由 $\lambda$ 系数控制。根据公式可以得到L1正则的等值线是一个方形的，空间中J与等值线相交的点**大概率会交于顶点**即坐标轴上，因此 $w_i=0$的概率会很大，这也使得L1正则具有稀疏性。
+
+  * L2正则化*非稀疏输出*，有解析解，抗扰动能力强。也被称作"权重衰减"，较L1而言更能防止过拟合。
+
+  $$\Omega(\theta)=||w||_ 2^2=\sum_i|w_i|_ 2^2\tag{l2-norm}$$
+  $$J=J_0+\lambda\sum_w|w|_ 2^2\tag{l2-loss}$$  
+
+  同样可以画出L2正则的等值线，是一个更为光滑的圆形，J与等值线相交时 $w_i=0$的概率就会小了许多。
+
+  * 正则对于偏导的影响
+
+    L1相比L2，L1减少的是一个**常量**，L2减少的是**权重的固定比例**。  
+
+    收敛速度取决于权重本身，权重大时L2会收敛更快。并且就计算效率上来讲L2能使计算更加高效。
+
+  * L1、L2范数做为损失函数  
+
+    + L1范数损失函数，**最小绝对值偏差(LAD),最小绝对值误差(LAE)**
+    $$S=\sum^n_{i=1}|Y_i-f(x_i)|$$
+
+    + L2范数损失函数，**最小平方误差(LSE)**
+    $$S=\sum^n_{i=1}(Y_i-f(x_i))^2$$
+
+    + | L2 | L1 |
+      | :-: | :-: |
+      | 不是非常鲁棒 | 鲁棒 |
+      | 稳定解 | 不稳定解 |
+      | 总是一个解 | 可能有多个解 |
+***
+### <p id='dilation&erosion'>膨胀与腐蚀</p>
