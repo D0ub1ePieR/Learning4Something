@@ -81,5 +81,55 @@
     二维特征点经过一个全连接层后输入$n_d$个级联模块,每个模块输出作为中间输出,并计算loss，以避免梯度消失问题。
 
     设计时考虑到两个问题
-    * 权重与重建模块数维数不同的问题，避免出现模糊的合成，即不同的weight可能和惩处相似的最终结果。于是添加了对矩阵的Frobenius Norm操作
+    * 权重与重建模块数维数不同的问题，避免出现模糊的合成，即不同的weight可能和惩处相似的最终结果。于是添加了对矩阵的**Frobenius Norm**操作
     * 当$n_d$较大时，可能出现梯度的消失，即提出了一个loss
+
+  - weight estimator
+
+    有六个FC层构成，经验得认为将网络输出的绝对值合并为权重可以提高性能
+
+  - rotation estimator
+
+    <center><img src='./imgs/3DURN-net1.png'/></center>
+
+    可以表示为 $\hat{R_i}=g(x_i)$,与weight estimator结构类似，但拥有不同的通道数量
+
+    另外的需要满足：
+    * 正交约束 $\hat{R_i}\hat{R_i^T}=I$
+    * 估计旋转矩阵时的反射模糊
+
+    提出了一个rotation refining模块，将9\*1的矩阵转换为3\*3，
+    $$g(x_i)=U\Sigma V$$
+    $$\tilde{R_i}\leftarrow UV^T$$
+    $$\hat{R_i}\leftarrow U\begin{bmatrix}1&0&0\\0&1&0\\0&0&\tilde{R_i}\end{bmatrix}V^T$$
+    > 现有深度学习框架中内置了对于SVD的反向传播
+
+  - Loss
+
+    projection loss和low-rank loss
+
+    * 一些定义
+
+      $S_j^k=[vec(f_j^k(x_1)),\cdots,vec(f_j^k(x_{n_b}))]^T$，其中k为第k个级联模块，j为第j个reconstructor模块，$n_b$为batch size
+
+      $\hat{X_i^k}=\sum_{j=1,\cdots,n_f}w_jf_j^k(x_i)$
+
+    * 投影损失
+
+      $$L_{proj}=\frac{1}{pn_dn_b}\displaystyle\sum_{i\in B}\sum_{k=1,\cdots,n_d}||P\hat{R_i}\hat{X_i^k}-x_i||_ F^2$$
+
+      其中使用Frobenius Norm，P为投影矩阵，B为一组batch。考虑到使用的正交相机模型，目标物体距离相机相比深度变化足够大，可以令
+
+      $$P=\begin{bmatrix}1&0&0\\0&1&0\end{bmatrix}$$
+
+    * low-rank prior loss
+
+      $$L_{lr}=\frac{1}{n_dn_f}\sum_{k=1,\cdots,n_d}\sum_{j=1,\cdots,n_f}||S_j^k(S_j^k)^T||_ * $$
+
+      其中使用nuclear norm。这一损失在NRsfm无监督方法中普遍使用，使用log(det())也可以替代nuclear norm，但经验上nuclear norm表现更优
+
+    * total
+
+      $$L_{total}=\lambda_1L_{proj}+\lambda_2L_{lr}+\lambda_3L_{reg}$$
+
+      其中$L_{reg}=||w||_ F^2$,避免梯度消失问题。
