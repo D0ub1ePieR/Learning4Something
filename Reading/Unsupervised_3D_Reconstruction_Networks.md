@@ -133,3 +133,29 @@
       $$L_{total}=\lambda_1L_{proj}+\lambda_2L_{lr}+\lambda_3L_{reg}$$
 
       其中$L_{reg}=||w||_ F^2$,避免梯度消失问题。
+***
+* 实验
+
+  - 一些细节
+
+    * 由于旋转参数对于重建十分重要，所以旋转模块和重建模块参数交替更新(25次旋转，1次重建)
+    * 二维点的x-y坐标与输出二维点坐标系相同，输出三维点由二维点和深度估计组成
+
+  - 评价指标
+
+    * 数据集PASCAL3D+、PASCAL VOC、MUCT、two cloths sequence in [28]
+    * 在至少有八个特征点的特定类别上进行评价
+    * 归一化平均三维误差(the normalized mean 3D error)
+      $$e^1_{3D}=\frac{1}{\sigma n_sp}\sum^{n_s}_{i=1}\sum^p_{j=1}e_{ij}$$
+      $$\sigma=\frac{1}{3n_s}\sum^{n_s}_{i=1}(\sigma_{ix}+\sigma_{iy}+\sigma_{iz})$$
+
+      $\sigma_{ix}、\sigma_{iy}、\sigma_{iz}$ 分别为i-th与3D-GT在xyz三个方向上的标准差。$n_s$为实例总数。$e_{ij}$ 为第i个实例中第j个坐标的欧氏距离误差。
+    * 对于人脸评价
+      $$e^2_{3D}=\frac{1}{n_s}\sum^{n_s}_{i=1}\frac{||X_i^{GT}-X_i^{infer}||_ F}{||X_i^{GT}||_ F}$$
+    * 一些处理  
+      分别测试了没有噪声和有噪声的二维特征点输入，加入了均值为零，标准差为0.01$d_{max}$ 的高斯误差  
+      为了验证对训练时没有出现的实例能够重建，将数据集分为80%/20%，分别用于训练和测试  
+      在计算误差时，同时计算了原始重建形状和reflected形状并取较小值累加，考虑到了inherent reflection ambiguity
+  - 实验结果
+    * 对于刚体，相较state-of-art有提升
+    * 对于非刚体，效果有所不及，但是不影响实用的应用
