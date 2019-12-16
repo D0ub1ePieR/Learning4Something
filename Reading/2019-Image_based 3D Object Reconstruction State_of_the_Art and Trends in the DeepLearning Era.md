@@ -10,7 +10,7 @@
 > 3D Reconstruction, Depth Estimation, SLAM, SfM, CNN, Deep Learning, LSTM, 3D face, 3D Human Body, 3D Video
 
 ***
-### <text id='section-1'>简介</text>
+### <text id='section-1'>1 简介</text>
 
 &emsp;&emsp;基于图像的三维重建的目标是从一个或多个二维图像中推断出物体和场景的三维几何和结构。这个长期存在的不适定问题是机器人导航、物体识别和场景理解、三维建模和动画、工业控制和医疗诊断等许多应用的基础。  
 
@@ -44,7 +44,7 @@
 <p id='cite-2'>[2] A. Laurentini, “The visual hull concept for silhouette-based image understanding,” IEEE TPAMI, vol. 16, no. 2, pp. 150–162, 1994</p>
 
 ***
-### <p id='section-2'>问题陈述和分类</p>
+### <p id='section-2'>2 问题陈述和分类</p>
 
 &emsp;&emsp;让$I=\{I_k,k=1,\cdots,n\}$ 为一组$n\geq1$的关于一个或多个物体$X$的RGB图片。三维重建可以被描述为学习一个预测器$f_\theta$能够推断出一个形状 $\hat{X}$ 与未知的形状 $X$足够接近的过程。换句话说，函数$f_\theta$是最小化重建目标$L(I)=d(f_\theta(I), X)$ 的结果。这里 $\theta$是一组$f$的参数，$d(\cdot,\cdot)$ 是一种目标形状$X$与重建形状$f(I)$ 之间特定的距离。重建目标$L$在深度学习文献中也称为损失函数。
 
@@ -122,6 +122,61 @@
 下面几节将详细讨论这些方面。
 
 ***
-### <p id='section-3'>编码阶段</p>
+### <p id='section-3'>3 编码阶段</p>
 
-&emsp;&emsp;
+&emsp;&emsp;基于深度学习的三维重建算法将输入$I$编码至一个特征向量$x=h(I)\in{\chi}$，其中 $\chi$是一个潜在空间。一个好的映射函数$h$需要满足以下的特性：
+
+  - 两个表示相似三维物体的输入$I_1$和$I_2$被映射为$x_1和x_2\in\chi$需要在潜在空间中互相接近
+  - 一个关于$x$的小波动 $\partial{x}$ 需要对应于输入形状的一个小扰动
+  - 由$h$产生的潜在表示应该对摄像机姿态等外部因素保持不变
+  - 三维模型及其对应的二维图像需要被映射到潜在空间的同一点上。这将确保表示是不模糊的，从而有助于重建。
+
+前两个条件已经通过使用将输入映射到离散([Section 3.1](#section-3.1))或连续([Section 3.2](#section-3.2))的潜在空间的编码器解决。它们可以是平整的，也可以是层次化的([Section 3.3](#section-3.3))。第三点通过使用分离表示`disentangled representations`([Section 3.4](#section-3.4))解决。最后一点已经通过在训练阶段使用TL结构来解决。这在[Section 7.3.1](#section-7.3.1)中作为文献中使用的许多训练机制之一进行了介绍。[表2](#table-2)总结了这种分类法。
+
+<center id='table-2'>
+  <table>
+    <tr>
+      <th>潜在空间</th>
+      <th>结构</th>
+    </tr>
+    <tr>
+      <td>离散<a href='#section-3.1'>(3.1)</a> vs 连续<a href='#section-3.2'>(3.2)</a></td>
+      <td rowspan='3'>ConvNet,ResNet,<br/>FC,3D-VAE</td>
+    </tr>
+    <tr>
+      <td>平整 vs 层次化<a href='#section-3.3'>(3.3)</a></td>
+    </tr>
+    <tr>
+      <td>分离表示<a href='#section-3.4'>(3.4)</a></td>
+    </tr>
+  </table>
+  表2 - 编码阶段的分类。FC: 全连接层。VAE: 差分自编码器。
+</center>
+
+#### <p id='section-3.1'>3.1 离散潜在空间</p>
+
+&emsp;&emsp;Wu等人在他们的开创性著作[[3]](#cite-3)中介绍了3D ShapeNet，这是一种映射3D形状的编码网络，表示尺寸为$30^3$的离散体积网格，映射到大小为4000*1的隐藏空间中。它的核心网络由$n_{conv}=3$个卷积层组成(每一个使用了三维卷积滤波器)，紧接着$n_{fc}=3$个全连接层。这个标准的香草架构已经被使用于三维形状分类和检索[[3]](#cite-3)，以及三维重建表示为体素网格[[3]](#cite-3)的深度图。它还被用于三维编码的分支，三维重建网络训练中的TL体系结构,详见[7.3.1节](#section-7.3.1)。
+
+&emsp;&emsp;将输入图像映射到潜在空间的2D编码网络遵循与3D ShapeNet[[3]](#cite-3)相同的架构，但使用2D卷积[[4]](#cite-4), [[5]](#cite-5), [[6]](#cite-6), [[7]](#cite-7), [[8]](#cite-8), [[9]](#cite-9), [[10]](#cite-10), [[11]](#cite-11)。早期的工作层类型和层数不同。例如，Yan等人[[4]](#cite-4)使用$n_{conv}=3$个卷积层分别为64, 128, 256个通道，另外$n_{fc}=3$个全连接层分别包含1024, 1024, 512个神经元。Wiles和Zisserman[[10]](#cite-10)使用$n_{conv}=3$个卷积层分别为3, 64, 128, 256, 128, 160个通道。其他作品增加了池化层[[7]](#cite-7)，[[12]](#cite-12)，和leaky Rectified Linear Units(ReLU)[[7]](#cite-7)，[[12]](#cite-12)，[[13]](#cite-13)。比如，Wiles和Zisserman[[10]](#cite-10)在除了第一层后和最后一层前的每一对卷积层中间使用了最大池化层。ReLU层由于使梯度在反向传播时从不为0提高了训练效果。
+
+&emsp;&emsp;二维和三维的编码网络都可以通过使用深度残差网络(ResNet)来实现，这种网络添加了卷积层之间的残差连接，如[[6]](#cite-6), [[7]](#cite-7), [[9]](#cite-9)。与VGGNet[[15]](#cite-15)等传统网络相比，ResNets改善并加快了深度网络的学习过程。
+
+<p id='cite-3'>[3] Z. Wu, S. Song, A. Khosla, F. Yu, L. Zhang, X. Tang, and J. Xiao, “3D shapenets: A deep representation for volumetric shapes,” in IEEE CVPR, 2015, pp. 1912–1920.</p>
+<p id='cite-4'>[4] X. Yan, J. Yang, E. Yumer, Y. Guo, and H. Lee, “Perspective Transformer Nets: Learning single-view 3D object reconstruction without 3D supervision,” in NIPS, 2016, pp. 1696–1704.</p>
+<p id='cite-5'>[5] E. Grant, P. Kohli, and M. van Gerven, “Deep disentangled representations for volumetric reconstruction,” in ECCV, 2016, pp. 266–279.</p>
+<p id='cite-6'>[6] J. Wu, Y. Wang, T. Xue, X. Sun, B. Freeman, and J. Tenenbaum, “MarrNet: 3D shape reconstruction via 2.5D sketches,” in NIPS, 2017, pp. 540–550.</p>
+<p id='cite-7'>[7] C. B. Choy, D. Xu, J. Gwak, K. Chen, and S. Savarese, “3DR2N2: A unified approach for single and multi-view 3D object reconstruction,” in ECCV, 2016, pp. 628–644.</p>
+<p id='cite-8'>[8] S. Tulsiani, T. Zhou, A. A. Efros, and J. Malik, “Multi-view supervision for single-view reconstruction via differentiable ray consistency,” in IEEE CVPR, vol. 1, no. 2, 2017, p. 3.</p>
+<p id='cite-9'>[9] X. Z. Xingyuan Sun, Jiajun Wu and Z. Zhang, “Pix3D: Dataset and Methods for Single-Image 3D Shape Modeling,” in IEEE CVPR, 2018.</p>
+<p id='cite-10'>[10] O. Wiles and A. Zisserman, “SilNet: Single-and Multi-View Reconstruction by Learning from Silhouettes,” BMVC, 2017.</p>
+<p id='cite-11'>[11] S. Tulsiani, A. A. Efros, and J. Malik, “Multi-View Consistency as Supervisory Signal for Learning Shape and Pose Prediction,” in IEEE CVPR, 2018.</p>
+<p id='cite-12'>[12]A. Johnston, R. Garg, G. Carneiro, I. Reid, and A. van den Hengel, “Scaling CNNs for High Resolution Volumetric Reconstruction From a Single Image,” in IEEE CVPR, 2017, pp. 939–948.</p>
+<p id='cite-13'>[13]G. Yang, Y. Cui, S. Belongie, and B. Hariharan, “Learning singleview 3d reconstruction with limited pose supervision,” in ECCV, 2018.</p>
+<p id='cite-14'>[14]K. He, X. Zhang, S. Ren, and J. Sun, “Deep residual learning for image recognition,” in IEEE CVPR, 2016, pp. 770–778.</p>
+<p id='cite-15'>[15]K. Simonyan and A. Zisserman, “Very deep convolutional networks for large-scale image recognition,” arXiv preprint arXiv:1409.1556, 2014.</p>
+
+#### <p id='section-3.2'>3.2 连续潜在空间</p>
+
+#### <p id='section-3.3'>3.3 分层潜在的空间</p>
+
+#### <p id='section-3.4'>3.4 分离表示</p>
