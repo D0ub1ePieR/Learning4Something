@@ -10,7 +10,7 @@
 > 3D Reconstruction, Depth Estimation, SLAM, SfM, CNN, Deep Learning, LSTM, 3D face, 3D Human Body, 3D Video
 
 ***
-### <text id='section-1'>1 简介</text>
+### <p id='section-1'>1 简介</p>
 
 &emsp;&emsp;基于图像的三维重建的目标是从一个或多个二维图像中推断出物体和场景的三维几何和结构。这个长期存在的不适定问题是机器人导航、物体识别和场景理解、三维建模和动画、工业控制和医疗诊断等许多应用的基础。  
 
@@ -177,6 +177,20 @@
 
 #### <p id='section-3.2'>3.2 连续潜在空间</p>
 
+&emsp;&emsp;使用前一节中介绍的编码器，潜在空间 $\chi$可能不是连续的，因此它不允许简单的插值。换句话说，如果$x_1=h(I_1),x_2=h(I_2)$，那么将不保证 $\frac{1}{2}(x_1+x_2)$ 能够被解码成一个有效的三维形状。同样，对于$x_1$的小扰动并不一定对应于输入的小扰动。变分自编码器(VAE)[[16]](#cite-16)及其3D扩展(3D- vae)[[17]](#cite-17)具有一个基本的独特特性，使其适合于生成建模:**通过设计，它们的潜在空间是连续的，允许简单的采样和插值**。它的关键思想是，将输入映射到一个平均向量 $\mu$和一个标准差为 $\sigma$的多元高斯分布的向量中，而不是一个特征向量。采样层随后取这两个向量，通过高斯分布的随机采样，生成一个特征向量$x$，作为后续解码阶段的输入。
+
+&emsp;&emsp;这个结构被用来学习为了基于体素[[17]](#cite-17)[[18]](#cite-18)，深度[[19]](#cite-19)，表面[[20]](#cite-20)，点云[[21]](#cite-21)[[22]](#cite-22)重建的连续潜在空间。比如，在Wu[[17]](#cite-17)等人的工作中，图像编码器接收一个256*256的RGB图像并输出两个200维的向量表示在200维空间中的高斯分布的均值和标准差。相比标准编码器，3D-VAE能够在潜在空间中随机采样用来生成输入，从而由一个输入图像生成多个合理的3D形状[[21]](#cite-21)[[22]](#cite-22)。它很好地概括了在训练中没有看到的图像。
+
+<p id='cite-16'>[16] D. P. Kingma and M.Welling, “Auto-encoding variational bayes,” ICLR, 2014.</p>  
+<p id='cite-17'>[17] J. Wu, C. Zhang, T. Xue, B. Freeman, and J. Tenenbaum, “Learning a probabilistic latent space of object shapes via 3D generativeadversarial modeling,” in NIPS, 2016, pp. 82–90.</p>  
+<p id='cite-18'>[18] S. Liu, C. L. Giles, I. Ororbia, and G. Alexander, “Learning a Hierarchical Latent-Variable Model of 3D Shapes,” International Conference on 3D Vision, 2018.</p>  
+<p id='cite-19'>[19] A. A. Soltani, H. Huang, J. Wu, T. D. Kulkarni, and J. B. Tenenbaum, “Synthesizing 3D shapes via modeling multi-view depth maps and silhouettes with deep generative networks,” in IEEE CVPR, 2017, pp. 1511–1519.</p>  
+<p id='cite-20'>[20] P. Henderson and V. Ferrari, “Learning to generate and reconstruct 3D meshes with only 2D supervision,” BMVC, 2018.</p>  
+<p id='cite-21'>[21] P. Mandikal, N. Murthy, M. Agarwal, and R. V. Babu, “3DLMNet: Latent Embedding Matching for Accurate and Diverse 3D Point Cloud Reconstruction from a Single Image,” BMVC, pp. 662–674, 2018.</p>  
+<p id='cite-22'>[22] M. Gadelha, R.Wang, and S. Maji, “Multiresolution tree networks for 3D point cloud processing,” in ECCV, 2018, pp. 103–118.</p>
+
 #### <p id='section-3.3'>3.3 分层潜在的空间</p>
+
+&emsp;&emsp;Liu[[18]](#cite-18)等人将输入映射到单个潜在表示的编码器不能提取丰富的结构，从而可能导致模糊重建。为了提升重建的质量，Liu等人提出了一个更加复杂的内部变量结构`internal variable structure`，具体目标是鼓励学习一种分层排列的潜在特征检测器。该方法从一个全局潜在变量层开始，该层被硬连接到一组局部潜在变量层，每个层负责表示一个级别的特征提取。跳跃连接以自顶向下的定向方式将潜在编码连接在一起:离输入越近的局部编码代表低层特征，而离输入越远的局部编码代表高层特征。最后，将局部潜码连接到一个平整结构`flatten`上，并将其输入到特定于任务的模型中，如三维重建模型。
 
 #### <p id='section-3.4'>3.4 分离表示</p>
