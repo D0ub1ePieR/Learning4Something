@@ -161,6 +161,50 @@
 
 &emsp;&emsp;二维和三维的编码网络都可以通过使用深度残差网络(ResNet)来实现，这种网络添加了卷积层之间的残差连接，如[[6]](#cite-6), [[7]](#cite-7), [[9]](#cite-9)。与VGGNet[[15]](#cite-15)等传统网络相比，ResNets改善并加快了深度网络的学习过程。
 
+#### <p id='section-3.2'>3.2 连续潜在空间</p>
+
+&emsp;&emsp;使用前一节中介绍的编码器，潜在空间 $\chi$可能不是连续的，因此它不允许简单的插值。换句话说，如果$x_1=h(I_1),x_2=h(I_2)$，那么将不保证 $\frac{1}{2}(x_1+x_2)$ 能够被解码成一个有效的三维形状。同样，对于$x_1$的小扰动并不一定对应于输入的小扰动。变分自编码器(VAE)[[16]](#cite-16)及其3D扩展(3D- vae)[[17]](#cite-17)具有一个基本的独特特性，使其适合于生成建模:**通过设计，它们的潜在空间是连续的，允许简单的采样和插值**。它的关键思想是，将输入映射到一个平均向量 $\mu$和一个标准差为 $\sigma$的多元高斯分布的向量中，而不是一个特征向量。采样层随后取这两个向量，通过高斯分布的随机采样，生成一个特征向量$x$，作为后续解码阶段的输入。
+
+&emsp;&emsp;这个结构被用来学习为了基于体素[[17]](#cite-17)[[18]](#cite-18)，深度[[19]](#cite-19)，表面[[20]](#cite-20)，点云[[21]](#cite-21)[[22]](#cite-22)重建的连续潜在空间。比如，在Wu[[17]](#cite-17)等人的工作中，图像编码器接收一个256*256的RGB图像并输出两个200维的向量表示在200维空间中的高斯分布的均值和标准差。相比标准编码器，3D-VAE能够在潜在空间中随机采样用来生成输入，从而由一个输入图像生成多个合理的3D形状[[21]](#cite-21)[[22]](#cite-22)。它很好地概括了在训练中没有看到的图像。
+
+#### <p id='section-3.3'>3.3 分层潜在的空间</p>
+
+&emsp;&emsp;Liu[[18]](#cite-18)等人将输入映射到单个潜在表示的编码器不能提取丰富的结构，从而可能导致模糊重建。为了提升重建的质量，Liu等人提出了一个更加复杂的内部变量结构`internal variable structure`，具体目标是鼓励学习一种分层排列的潜在特征检测器。该方法从一个全局潜在变量层开始，该层被硬连接到一组局部潜在变量层，每个层负责表示一个级别的特征提取。跳跃连接以自顶向下的定向方式将潜在编码连接在一起:离输入越近的局部编码代表低层特征，而离输入越远的局部编码代表高层特征。最后，将局部潜码连接到一个平整结构`flatten`上，并将其输入到特定于任务的模型中，如三维重建模型。
+
+#### <p id='section-3.4'>3.4 分离表示</p>
+
+&emsp;&emsp;图像中物体的外观受到多种因素的影响，如**物体的形状**、**相机的姿态** 和 **照明条件**。标准编码器将所有这些可变的部分表示为学习到的编码 $x$。这在识别和分类等应用程序中是不可取的，这些应用程序应该**不受外部因素(如姿态和照明[[23]](#cite-23))的影响**。三维重建还可以受益于分离表示，其中形状、姿态和照明用不同的编码表示。为此，Grant等人[[5]](#cite-5)提出了一种编码器将RGB图像映射成形状码和转换码。前者被解码成三维形状。编码为光照条件和姿态的后者被解码为(1)另一个80*80的RGB图像和(2)通过全连接层得到的相机姿态。 为了实现一种分离的表示，网络的训练方式为在前向过程中图像解码器接受形状码和转换码。在反向传播中，从图像解码器到形状码的信号被抑制，以迫使其仅表示形状。  
+&emsp;&emsp;Zhu等人[[24]](#cite-24)遵循了同样的想法，将6DOF的姿态参数和形状参数解耦。网络通过2D输入重建标准姿态的3D形状。同时，姿态回归估计了6DOF的姿态参数，然后将这些参数应用于重建的标准形状。解耦字条和形状减少了网络中自由参数的数量，从而提高了效率。
+
+***
+### <p id='section-4'>4 体素解码</p>
+
+&emsp;&emsp;体素表示将一个三维对象空间离散化为一个三维体素栅格$V$。离散化越精细表示越准确。随后目标为恢复一个栅格 $\hat{V}=f_\theta(I)$ 使其表示的三维形状 $\hat{X}$ 尽可能得接近未知的三维形状 $X$。使用体素网格的主要优势是许多现有的深度学习架构设计为2D图像的分析可以很容易地扩展到三维数据通过取代二维像素矩阵的三维模拟,然后处理网格使用3D卷积和池化操作。本节讨论不同的体素表示([Section 4.1](#section-4.1))，并回顾用于低分辨率([Section 4.2](#section-4.2))和高分辨率([Section 4.3]((#section-4.3)))3D重建的解码器架构。
+
+<center>
+  <img src='./imgs/2019zs-table3.png'/></br>
+  表三:文献中使用的各种体素解码器的分类。圆括号中的数字是对应的节号。MDN:混合密度网络。BBX:边界框原语。Part.:分区(partitioning)
+</center>
+
+#### <p id='section-4.1'>4.1 三维形状的体素表示</p>
+
+&emsp;&emsp;在文献中有四种主要的体素表示:  
+
+  + **二进制占用栅格**(Binary occupancy grid) 在这个表示中，如果一个体素属于感兴趣的对象，那么它被设置为1，而背景体素被设置为0。
+  + **概率占用栅格**(Probabilistic occupancy grid) 概率占用网格中的每个体素都对其属于感兴趣对象的概率进行编码。
+  + **符号距离函数**(The Signed Distance Function: SDF) 每个体素都对其到最近表面点的符号距离进行编码。如果体素位于对象内部，则为负，否则为正。
+  + **截断符号距离函数**(Truncated Signed Distance Function: TSDF) TSDF由Curless和Levoy[[37](#cite-37)]引入，首先估计距离传感器的瞄准线距离，形成射影符号距离场，然后在小的正负值处截断该场，计算TSDF
+
+&emsp;&emsp;概率占用网格特别适合输出概率的机器学习算法。SDFs提供了**表面位置**和**法线方向**的明确估计。然而，从深度图等部分数据构造它们并非易事。TSDFs牺牲了从表面几何形状无限延伸的*全符号距离场*，但允许基于部分观察的场的局部更新。它们适用于从一组深度地图重建三维体素[[26]](#cite-26)[[31]](#cite-31)[[35]](#cite-35)[[38]](#cite-38)。  
+&emsp;&emsp;总的来说，体素表示通过对对象周围的体素进行规律的采样来创建。Knyaz等人[[30]](#cite-30)介绍了一种称为Frustum的表示方法或体素模型，其将深度表示法和体素网格相结合。它使用了相机3D截体的切片构建体素空间，从而提供了体素切片与输入图像中的轮廓的精确对齐。
+&emsp;&emsp;同时，普通SDF和TSDF表示均离散成了一个规则的栅格。但是最近Park等人[[39]](#cite-39)提出了**深度SDF(deepSDF)** ，一个生成式深度学习模型，从输入点云生成连续的SDF场。与传统的SDF表示不同，DeepSDF可以处理有噪声和不完整的数据。它还可以表示整个类的形状。
+
+#### <p id='section-4.2'>4.2 低分辨率三维体素重建</p>
+
+#### <p id='section-4.3'>4.3 高分辨率三维体素重建</p>
+
+### <p>参考文献</p>
+
 <p id='cite-3'>[3] Z. Wu, S. Song, A. Khosla, F. Yu, L. Zhang, X. Tang, and J. Xiao, “3D shapenets: A deep representation for volumetric shapes,” in IEEE CVPR, 2015, pp. 1912–1920.</p>
 <p id='cite-4'>[4] X. Yan, J. Yang, E. Yumer, Y. Guo, and H. Lee, “Perspective Transformer Nets: Learning single-view 3D object reconstruction without 3D supervision,” in NIPS, 2016, pp. 1696–1704.</p>
 <p id='cite-5'>[5] E. Grant, P. Kohli, and M. van Gerven, “Deep disentangled representations for volumetric reconstruction,” in ECCV, 2016, pp. 266–279.</p>
@@ -174,13 +218,6 @@
 <p id='cite-13'>[13]G. Yang, Y. Cui, S. Belongie, and B. Hariharan, “Learning singleview 3d reconstruction with limited pose supervision,” in ECCV, 2018.</p>
 <p id='cite-14'>[14]K. He, X. Zhang, S. Ren, and J. Sun, “Deep residual learning for image recognition,” in IEEE CVPR, 2016, pp. 770–778.</p>
 <p id='cite-15'>[15]K. Simonyan and A. Zisserman, “Very deep convolutional networks for large-scale image recognition,” arXiv preprint arXiv:1409.1556, 2014.</p>
-
-#### <p id='section-3.2'>3.2 连续潜在空间</p>
-
-&emsp;&emsp;使用前一节中介绍的编码器，潜在空间 $\chi$可能不是连续的，因此它不允许简单的插值。换句话说，如果$x_1=h(I_1),x_2=h(I_2)$，那么将不保证 $\frac{1}{2}(x_1+x_2)$ 能够被解码成一个有效的三维形状。同样，对于$x_1$的小扰动并不一定对应于输入的小扰动。变分自编码器(VAE)[[16]](#cite-16)及其3D扩展(3D- vae)[[17]](#cite-17)具有一个基本的独特特性，使其适合于生成建模:**通过设计，它们的潜在空间是连续的，允许简单的采样和插值**。它的关键思想是，将输入映射到一个平均向量 $\mu$和一个标准差为 $\sigma$的多元高斯分布的向量中，而不是一个特征向量。采样层随后取这两个向量，通过高斯分布的随机采样，生成一个特征向量$x$，作为后续解码阶段的输入。
-
-&emsp;&emsp;这个结构被用来学习为了基于体素[[17]](#cite-17)[[18]](#cite-18)，深度[[19]](#cite-19)，表面[[20]](#cite-20)，点云[[21]](#cite-21)[[22]](#cite-22)重建的连续潜在空间。比如，在Wu[[17]](#cite-17)等人的工作中，图像编码器接收一个256*256的RGB图像并输出两个200维的向量表示在200维空间中的高斯分布的均值和标准差。相比标准编码器，3D-VAE能够在潜在空间中随机采样用来生成输入，从而由一个输入图像生成多个合理的3D形状[[21]](#cite-21)[[22]](#cite-22)。它很好地概括了在训练中没有看到的图像。
-
 <p id='cite-16'>[16] D. P. Kingma and M.Welling, “Auto-encoding variational bayes,” ICLR, 2014.</p>  
 <p id='cite-17'>[17] J. Wu, C. Zhang, T. Xue, B. Freeman, and J. Tenenbaum, “Learning a probabilistic latent space of object shapes via 3D generativeadversarial modeling,” in NIPS, 2016, pp. 82–90.</p>  
 <p id='cite-18'>[18] S. Liu, C. L. Giles, I. Ororbia, and G. Alexander, “Learning a Hierarchical Latent-Variable Model of 3D Shapes,” International Conference on 3D Vision, 2018.</p>  
@@ -188,9 +225,3 @@
 <p id='cite-20'>[20] P. Henderson and V. Ferrari, “Learning to generate and reconstruct 3D meshes with only 2D supervision,” BMVC, 2018.</p>  
 <p id='cite-21'>[21] P. Mandikal, N. Murthy, M. Agarwal, and R. V. Babu, “3DLMNet: Latent Embedding Matching for Accurate and Diverse 3D Point Cloud Reconstruction from a Single Image,” BMVC, pp. 662–674, 2018.</p>  
 <p id='cite-22'>[22] M. Gadelha, R.Wang, and S. Maji, “Multiresolution tree networks for 3D point cloud processing,” in ECCV, 2018, pp. 103–118.</p>
-
-#### <p id='section-3.3'>3.3 分层潜在的空间</p>
-
-&emsp;&emsp;Liu[[18]](#cite-18)等人将输入映射到单个潜在表示的编码器不能提取丰富的结构，从而可能导致模糊重建。为了提升重建的质量，Liu等人提出了一个更加复杂的内部变量结构`internal variable structure`，具体目标是鼓励学习一种分层排列的潜在特征检测器。该方法从一个全局潜在变量层开始，该层被硬连接到一组局部潜在变量层，每个层负责表示一个级别的特征提取。跳跃连接以自顶向下的定向方式将潜在编码连接在一起:离输入越近的局部编码代表低层特征，而离输入越远的局部编码代表高层特征。最后，将局部潜码连接到一个平整结构`flatten`上，并将其输入到特定于任务的模型中，如三维重建模型。
-
-#### <p id='section-3.4'>3.4 分离表示</p>
