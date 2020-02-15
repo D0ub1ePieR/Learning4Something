@@ -3,6 +3,7 @@
 * [线性插值](#interpolation)
 * [空间变换网络](#STN)
 * [L1、L2正则化以及L1、L2 loss](#l1l2)
+  - [范数](#norm)
 * [Bottleneck](#google-net)
 * [lambertian](#lambertian反射)
 * [膨胀与腐蚀](#dilation&erosion)
@@ -272,5 +273,34 @@
       | 不是非常鲁棒 | 鲁棒 |
       | 稳定解 | 不稳定解 |
       | 总是一个解 | 可能有多个解 |
+  * <text id='norm'></text>范数
+    - 矩阵的1、2范数
+
+      $$||A||_ 1=max_j\sum^m_{i=1}a_{i,j}\tag{1-范数}$$
+      即所有矩阵列向量绝对值之和的最大值
+      $$||A||_ 2=\sqrt{\lambda_1}\tag{2-范数}$$
+      即$A'A$矩阵的最大特征值的开方,$\lambda_1=A^TA$的最大特征值
+
+    - Frobenius norm
+
+      即矩阵元素绝对值的平方和再开方
+      $$||A||_ F=(\sum^m_{i=1}\sum^n_{j=1}|a_{i j}|^2)^{\frac{1}{2}}=(tr(A^TA))^{\frac{1}{2}}$$
+
+    - nuclear norm
+
+      指矩阵奇异值的和
+      $$||A||_ * =\sum_j\sigma_j(A)$$
+
+      约束低秩，能凸近似rank
+
+      应用: 1)矩阵填充, 2)鲁棒PCA,核范数+1范数, 3)背景建模,将前景后景分离, 4)变换不变低秩纹理,将旋转图片转正
+
 ***
 ### <p id='dilation&erosion'>膨胀与腐蚀</p>
+***
+### <p id='other'>other</p>
+* vec操作
+
+  $$A=\begin{bmatrix}a_{11}&\cdots&a_{1m}\\\vdots&\ddots&\vdots\\a_{n1}&\cdots&a_{nm}\end{bmatrix}$$
+
+  $$vec(A)=[a_{11},\cdots,a_{1m},a_{21},\cdots,a_{2m},\cdots,a_{n1},\cdots,a_{nm}]^T$$
