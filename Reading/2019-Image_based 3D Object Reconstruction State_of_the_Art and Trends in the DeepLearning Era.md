@@ -196,14 +196,61 @@
   + **截断符号距离函数**(Truncated Signed Distance Function: TSDF) TSDF由Curless和Levoy[[37](#cite-37)]引入，首先估计距离传感器的瞄准线距离，形成射影符号距离场，然后在小的正负值处截断该场，计算TSDF
 
 &emsp;&emsp;概率占用网格特别适合输出概率的机器学习算法。SDFs提供了**表面位置**和**法线方向**的明确估计。然而，从深度图等部分数据构造它们并非易事。TSDFs牺牲了从表面几何形状无限延伸的*全符号距离场*，但允许基于部分观察的场的局部更新。它们适用于从一组深度地图重建三维体素[[26]](#cite-26)[[31]](#cite-31)[[35]](#cite-35)[[38]](#cite-38)。  
-&emsp;&emsp;总的来说，体素表示通过对对象周围的体素进行规律的采样来创建。Knyaz等人[[30]](#cite-30)介绍了一种称为Frustum的表示方法或体素模型，其将深度表示法和体素网格相结合。它使用了相机3D截体的切片构建体素空间，从而提供了体素切片与输入图像中的轮廓的精确对齐。
+&emsp;&emsp;总的来说，体素表示通过对对象周围的体素进行规律的采样来创建。Knyaz等人[[30]](#cite-30)介绍了一种称为Frustum的表示方法或体素模型，其将深度表示法和体素网格相结合。它使用了相机3D截体的切片构建体素空间，从而提供了体素切片与输入图像中的轮廓的精确对齐。  
 &emsp;&emsp;同时，普通SDF和TSDF表示均离散成了一个规则的栅格。但是最近Park等人[[39]](#cite-39)提出了**深度SDF(deepSDF)** ，一个生成式深度学习模型，从输入点云生成连续的SDF场。与传统的SDF表示不同，DeepSDF可以处理有噪声和不完整的数据。它还可以表示整个类的形状。
 
 #### <p id='section-4.2'>4.2 低分辨率三维体素重建</p>
 
+&emsp;&emsp;一旦使用编码器学习了输入的向量表示，下一步即为学习解码函数 $g$ ，这一步被称为 `generator`(生成器)或 `generative model`(生成模型)，它将向量表示映射为一个体积像素网格。标准方法往往使用卷积解码器，也称为反卷积网络镜像了卷积编码器。Wu等人[[3]](#cite-3)是最早提出利用深度图三维体素重建方法的学者之一。Wu等人[[6]](#cite-6)提出了一种两阶段重建网络，称为MarrNet。第一阶段从输入图像使用了编解码结构来重建深度图、法线图和剪影图。这三张图被称为2.5草图，然后被用作另一种编解码架构的输入，该架构回归了一个3D体素形状。这个网络后来被Sun等人[[9]](#cite-9)扩展为也可以回归得到输入的姿态。这种两阶段方法的主要优点是，与完整的3D模型相比，深度图、法线图和轮廓图更容易从2D图像中恢复。同样地，3D模型从这三种模式中恢复要比仅从2D图像中恢复容易得多。然而，这种方法不能重建复杂的或是薄结构。
+
+&emsp;&emsp;Wu等人的工作[[3]](#cite-3)推进了研究的进展 [[7]](#cite-7), [[8]](#cite-8), [[17]](#cite-17), [[27]](#cite-27), [[40]](#cite-40)。特别是，最近的研究试图在没有中间过程的情况下直接回归三维体素网格[[8]](#cite-8), [[11]](#cite-11), [[13]](#cite-13), [[18]](#cite-18)。Tulsiani等人[[8]](#cite-8)以及后来的[[11]](#cite-11)使用由三维反卷积层组成的解码器来预测体素的占用概率。Liu等人[[18]](#cite-18)使用三维反卷积神经网络，加上随后使用的元素级逻辑sigmoid，将学习到的潜在特征解码为三维网格占用概率。这些方法已经成功地实现了从单个或一组未经校准的相机捕获的图像进行三维重建。它们的主要优点是提出的用于二维图像分析的深度学习架构可以很容易地适应三维模型，将解码器中的二维反卷积替换为三维反卷积，并且可以在GPU上有效地实现。然而，考虑到计算复杂性和内存需求，这些方法产生的网格**分辨率较低**，通常大小为 $32^3$ 或 $64^3$ 。因此，他们无法找到细节。
+
 #### <p id='section-4.3'>4.3 高分辨率三维体素重建</p>
 
-### <p>参考文献</p>
+&emsp;&emsp;已经有人尝试提升深度学习体系结构的高分辨率体素重建。例如，Wu等人[[6]](#cite-6)通过简单地扩展网络，就可以重建大小为 $128^3$ 的体素网格。然而，体素网格在内存需求方面非常高，且内存需求随着网格分辨率的增大而增大。本节将回顾一些用于推断高分辨率容量网格的技术，同时使计算和内存需求易于处理。我们根据这些方法是使用 **空间划分**、**形状划分**、**子空间参数化**还是**粗-精细分策略**，将它们分为四类。
+
+##### <p id='section-4.3.1'>4.3.1 空间划分</p>
+
+&emsp;&emsp;虽然常规的体素网格有助于卷积运算，但它们非常稀疏，因为表面元素包含在很少的体素中。一些论文利用这种稀疏性来解决分辨率问题[[32]](#cite-32), [[33]](#cite-33), [[41]](#cite-41), [[42]](#cite-42)。他们能够利用诸如八叉树之类的空间划分技术来重建尺寸为 $256^3$ 到 $512^3$ 的三维立体网格。然而，在使用八叉树结构进行基于深度学习的重建时，存在两个主要的问题。第一个是**计算性**的，因为在常规网格上操作时，卷积操作更容易实现(尤其是在gpu上)。为此，Wang等人[[32]](#cite-32)设计了O-CNN，一种新型的八叉树数据结构，有效地将八分区信息和CNN特征存储到图形内存中，并在GPU上执行整个训练和评估。O-CNN支持各种不同的CNN结构和工作与3D形状的不同表示。O-CNN的存储和计算成本随着八叉树深度的增加呈二次增长，通过约束对三维曲面所占用的八分位数的计算，使得三维CNN对于高分辨率的三维模型是可行的。
+
+&emsp;&emsp;第二个问题源于**八叉树结构依赖于对象**这一事实。因此，理想情况下，深度神经网络需要学习如何推断八叉树的结构和内容。在本节中，我们将讨论这些问题是如何处理的。
+
+<center>
+  <img src='./imgs/2019zs-fig1.png'/>
+
+  图1：空间划分。OctNet[[41]](#cite-41)是一个能够实现深度和高分辨率的3D CNNs的混合八叉树网格。高分辨率八叉树也能够以深度优先的[[36]](#cite-36)或宽度优先的[[33]](#cite-33)方式逐步生成。
+</center>  
+
+* **4.3.1.1**
+  <p id='section-4.3.1.1'></p>
+
+  **使用预定义的八叉树结构**：最简单的方法是假设在运行时八叉树的结构是已知的。这对于诸如语义分割这样的应用程序来说是很好的，因为在这种情况下，可以将输出八叉树的结构设置为与输入的结构相同。然而，在许多重要的场景中，如三维重建、形状建模和RGB-D融合，八叉树的结构并不预先知道，必须进行预测。为此，Riegler等人[[41]](#cite-41)提出了一种混合网格-八叉树结构，称为OctNet([图1](#fig-1)-(a))。关键思想是将一个八叉树的最大深度限制在一个很小的数上，例如3，并将几个这样的浅八叉树放在一个规则的网格上。这种表示方法实现了深度和高分辨率的三维卷积网络。然而，在测试时，Riegler等人[[41]](#cite-41)假设单个八叉树的结构是已知的。因此，尽管该方法能够以 $256^3$ 的分辨率重建三维体块，但由于不同类型的对象可能需要不同的训练，因此**缺乏灵活性**。
+
+* **4.3.1.2**
+  <p id='section-4.3.1.2'></p>
+
+  **学习八叉树结构**：理想情况下，应该同时估计八叉树结构及其内容。可以这样做；
+  + 首先，使用卷积编码器将输入编码成紧凑特征向量([Section 3](#section-3))
+
+  + 然后，使用标准上卷积网络对特征向量进行解码，这导致输入的粗略体素重建，通常分辨率为 $32^3$ ([Section 4.2](#section-4.2))
+
+  + 重建体素形成八叉树的根，被细分为八个部分。带有边界体素的子树被向上采样并进一步处理，以细化该八分区的区域的重建。
+
+  + 子树被递归地处理，直到达到期望的分辨率
+
+&emsp;&emsp;Hane等人[[36]](#cite-36)介绍了层级曲面预测`Hierarchical Surface Prediction`(HSP)，[图1](#fig-1)-(b)，它通过使用上述方法重建分辨率高达 $256^3$ 的体素栅格。在这个方法中，首先以深度优先的方式探索八叉树。另一方面，Tatarchenko等人[[33]](#cite-33)提出了八叉树生成网络(OGN)，它遵循相同的思想，但以广度优先的方式探索八叉树，见[图1](#fig-1)-(<text>c</text>)。因此，OGN生成三维形状的分层重建结果，该方法能够重建尺寸为 $512^3$ 的体素栅格。
+
+&emsp;&emsp;Wang等人[[34]](#cite-34)引入了一种patch引导的剖分策略，核心思想是用八叉树表示三维形状，其中，每个叶节点近似一个平面曲面。为从潜在表示中推断出这样的结构，Wang等人[[34]](#cite-34)使用解码器级联，八叉树每层一个。在八叉树的每个层次，解码器预测每个细胞内的平面patch，且预测器(由全连接层组成)为每个子树预测patch近似状态，即:单元是否为'空'，是否用平面很好地近似曲面。未被很好近似的曲面patch的细胞被进一步细分并由下一层处理。这种方法将尺寸为 $256^3$ 的体素栅格的内存需求从 6.4GB[[32]](#cite-32) 减少到 1.7GB，计算时间从 1.39s 减少到 0.30s，同时保持相同的精度水平。它的主要缺陷是：**相邻的面片不能无缝重建**。另外，由于一个平面与每个八叉树细胞拟合，所以它不能很好地逼近曲面。
+
+##### <p id='section-4.3.2'>4.3.2 占用网络</p>
+
+&emsp;&emsp;虽然可以通过使用各种空间划分技术来减少内存占用，但是这些方法导致实现复杂，且现有的数据自适应算法仍然局限于相对较小的体素栅格($256^3到512^2$)。最近，有几篇论文提出用深度神经网络来学习三维形状的**隐式表示**(`implicit representation`)。例如，Chen和Zhang[[43]](#cite-43)提出了一个解码器来获取形状和三维点的潜在表示，并返回一个指示该点是在形状外部还是内部的值。该网络可用于重建高分辨率三维体素模型，但是当检索生成的形状时，体素CNN只需要一次学习(one-shot)就可以得到体素模型，而这种方法需要将体素栅格中的每一个点传递到网络中才可以得到其值。因此，生成样本所需的时间取决于采样分辨率。
+
+&emsp;&emsp;Tatarchenko等人[[44]](#cite-44)引入了占有网络，它隐式地将物体的三维曲面表示为*深度神经网络分类器的连续决策边界*，该方法没有在固定分辨率下预测体素化表示，而是使用可以在**任意分辨率**下评估的神经网络来预测完全占用函数。这大大减少了训练期间的内存占用，在推理时可以使用简单的多分辨率等值面(iossurface)提取算法从学习模型中提取栅格。
+
+##### <p id='section-4.3.3'>4.3.3 形状剖分</p>
+
+### <p id='cite'>参考文献</p>
 
 <p id='cite-3'>[3] Z. Wu, S. Song, A. Khosla, F. Yu, L. Zhang, X. Tang, and J. Xiao, “3D shapenets: A deep representation for volumetric shapes,” in IEEE CVPR, 2015, pp. 1912–1920.</p>
 <p id='cite-4'>[4] X. Yan, J. Yang, E. Yumer, Y. Guo, and H. Lee, “Perspective Transformer Nets: Learning single-view 3D object reconstruction without 3D supervision,” in NIPS, 2016, pp. 1696–1704.</p>
@@ -225,3 +272,17 @@
 <p id='cite-20'>[20] P. Henderson and V. Ferrari, “Learning to generate and reconstruct 3D meshes with only 2D supervision,” BMVC, 2018.</p>  
 <p id='cite-21'>[21] P. Mandikal, N. Murthy, M. Agarwal, and R. V. Babu, “3DLMNet: Latent Embedding Matching for Accurate and Diverse 3D Point Cloud Reconstruction from a Single Image,” BMVC, pp. 662–674, 2018.</p>  
 <p id='cite-22'>[22] M. Gadelha, R.Wang, and S. Maji, “Multiresolution tree networks for 3D point cloud processing,” in ECCV, 2018, pp. 103–118.</p>
+<p id='cite-23'>[23] H. Laga, Y. Guo, H. Tabia, R. B. Fisher, and M. Bennamoun, 3D Shape Analysis: Fundamentals, Theory, and Applications. JohnWiley & Sons, 2019</p>
+<p id='cite-24'>[24] R. Zhu, H. K. Galoogahi, C. Wang, and S. Lucey, “Rethinking reprojection: Closing the loop for pose-aware shape reconstruction from a single image,” in IEEE ICCV, 2017, pp. 57–65</p>
+<p id='cite-25'>[25] R. Girdhar, D. F. Fouhey, M. Rodriguez, and A. Gupta, “Learning a predictable and generative vector representation for objects,” in ECCV, 2016, pp. 484–499</p>
+<p id='cite-26'>[26] Ns and shape synthesis,” in IEEE CVPR, 2017, pp. 5868–5877</p>
+<p id='cite-27'>[27] M. Gadelha, S. Maji, and R. Wang, “3D shape induction from 2D views of multiple objects,” in 3D Vision, 2017, pp. 402–411</p>
+<p id='cite-28'>[28] W. Wang, Q. Huang, S. You, C. Yang, and U. Neumann, “Shape inpainting using 3D generative adversarial network and recurrent convolutional networks,” ICCV, 2017</p>
+<p id='cite-29'>[29] C. Zou, E. Yumer, J. Yang, D. Ceylan, and D. Hoiem, “3D-PRNN: Generating shape primitives with recurrent neural networks,” in IEEE ICCV, 2017</p>
+<p id='cite-30'>[30] V. A. Knyaz, V. V. Kniaz, and F. Remondino, “Image-to-Voxel Model Translation with Conditional Adversarial Networks,” in ECCV, 2018, pp. 0–0</p>
+<p id='cite-31'>[31] A. Kundu, Y. Li, and J. M. Rehg, “3D-RCNN: Instance-Level 3D Object Reconstruction via Render-and-Compare,” in IEEE CVPR, 2018, pp. 3559–3568</p>
+<p id='cite-32'>[32] P.-S. Wang, Y. Liu, Y.-X. Guo, C.-Y. Sun, and X. Tong, “OCNN: Octree-based convolutional neural networks for 3D shape analysis,” ACM TOG, vol. 36, no. 4, p. 72, 2017</p>
+<p id='cite-33'>[33] M. Tatarchenko, A. Dosovitskiy, and T. Brox, “Octree generating networks: Efficient convolutional architectures for highresolution 3D outputs,” in IEEE CVPR, 2017, pp. 2088–2096</p>
+<p id='cite-34'>[34] P.-S. Wang, C.-Y. Sun, Y. Liu, and X. Tong, “Adaptive O-CNN: a patch-based deep representation of 3D shapes,” ACM ToG, p. 217, 2018</p>
+<p id='cite-35'>[35] Y.-P. Cao, Z.-N. Liu, Z.-F. Kuang, L. Kobbelt, and S.-M. Hu, “Learning to reconstruct high-quality 3D shapes with cascaded fully convolutional networks,” in ECCV, 2018</p>
+<p id='cite-36'>[36] C. Hane, S. Tulsiani, and J. Malik, “Hierarchical Surface Prediction,” IEEE PAMI, no. 1, pp. 1–1, 2019</p>
