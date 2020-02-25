@@ -351,6 +351,159 @@ $$\cal{V}^\tau = B\Phi(P+\Delta)^\tau\tag{2}$$
 
 #### <p id='section-5.3'>5.3 基于点的技术</p>
 
+&emsp;&emsp;三维形状可以用 $N$ 个点的无序集 $S = \{(x_i, y_i, z_i)\}^N_{i=1}$ 来表示。这种基于点的方法很简单，但在内存需求方面是很有效的，它非常适合于具有奇怪部分和精细细节的对象。因此，越来越多的论文，2017年[[72]](#cite-72)至少有一篇，2018年[[21]](#cite-21)[[22]](#cite-22)[[73]](#cite-73)[[74]](#cite-74)[[75]](#cite-75)[[76]](#cite-76)[[77]](#cite-77)[[78]](#cite-78)[[79]](#cite-79)[[80]](#cite-80)[[82]](#cite-82)超过12篇和2019年[[81]](#cite-81)一些，探讨了它们在基于深度学习的重建中的应用。本节讨论了最新的基于点表示及其对应的网络体系结构。
+
+##### <p id='section-5.3.1'>5.3.1 表示</p>
+
+&emsp;&emsp;点云的主要挑战在于它们 **不是规则结构** 且 **不易适合利用空间规则性的卷积结构**。为了克服这一限制，提出了三种表述:
+
+* 点集表示将点云视为尺寸为 $N * 3$ 的矩阵[[21]](#cite-21)[[22]](#cite-22)[[72]](#cite-72)[[75]](#cite-75)[[77]](#cite-77)[[81]](#cite-81)
+
+* 一个或多个尺寸为 $H * W * 3$的三通道网格[[72]](#cite-72)[[73]](#cite-73)[[82]](#cite-82)，网格中的每个像素对三维点的 $(x, y, z)$ 坐标进行编码
+
+* 多视角深度图[[78]](#cite-78)[[83]](#cite-83)
+
+&emsp;&emsp;后两种表示，以下称为网络表示，非常适合卷积网络。由于它们能仅用二维卷积来推断，它们的计算效率也很高。注意：基于深度图的方法需要额外的融合步骤来推断对象的整个三维形状。如果相机参数已知，则可以使用直接的方式来实现；否则，可以使用点云配准技术[[84]](#cite-84)[[85]](#cite-85)或融合网络(`fusion network`)[[86]](#cite-86)来完成融合。此外，**点表示** 需要预先 **固定** 点 $N$ 的数目，而在使用 **网格表示** 的方法中，点的数量可以 **根据对象的性质而变化**，而它总是由网格分辨率限定。
+
+##### <p id='section-5.3.2'>5.3.2 网络结构</p>
+
+&emsp;&emsp;与基于体素和曲面的表示类似，使用基于点的表示的技术遵循编解码模型。虽然它们的 **编码器都是用相同的结构**，但它们在 **解码器的类型和架构上有所不同，见[[图3]](#fig-3)**。通常，网格表示使用上采样卷积网络来解码潜在变量[[72]](#cite-72)[[73]](#cite-73)[[78]](#cite-78)[[82]](#cite-82)，参见[图3(a)](#fig-3a)和[图3(b)](#fig-3b)。点集表示([图3(c)](#fig-3c))使用全连接层[[21]](#cite-21)[[72]](#cite-72)[[74]](#cite-74)[[77]](#cite-77)[[81]](#cite-81)，因为点云是无序的，全连接层的主要优点是它们捕获全局信息。然而，与卷积运算相比，它们在计算上是昂贵的。的主要优点是它们捕获全局信息。然而，与卷积运算相比，它们在计算上是昂贵的。为从卷积运算的效率中获益，Gadelha等人[[22]](#cite-22)在空间上使用空间分割树(如KD树)对点云进行排序，然后使用一维卷积操作对其进行处理，见[图3(d)](#fig-3d)。使用传统 CNN，每个卷积操作都具有受限的接受野(`receptive field`)，并且无法有效地利用全局和局部信息。Gadelha等人 [[22]](#cite-22)通过维持三种不同的分辨率来解决这个问题。也就是说，将潜在变量解码成三种不同的分辨率，然后将其汇聚并用一维卷积层进一步处理来生成4K大小的点云。
+
+&emsp;&emsp;Fan等人[[72]](#cite-72)提出了一种点集表示和网格表示结合的生成深度网络([图3(a)](#fig-3a))，该网络由级联的编解码模块组成：
+
+* 第一块获取输入图像并将其映射为一个潜在表示，然后将其解码为一个尺寸为 $H * W$ 的三通道图像。每个像素处的三个值是一个点的坐标。
+
+* 后续的每个块获取其先前块的输出，并进一步将其编码和解码为尺寸为 $H * W$ 的三通道图像。
+
+* 最后一个块是与前面类型相同的编码器，跟随的是由两个分支组成的预测器。第一个分支是预测尺寸为 $H * W$ (本例中为 $32×24$)三通道图像的解码器，其中，图像中每个像素处的三个值是点的坐标。第二个分支是全连接网络，它预测尺寸为 $N * 3$ 的矩阵，每行是三维点($N=256$)。
+
+* 使用集合的并操作将这两个分支的预测合并以生成尺寸为1024的三维点集。
+
+Jiang等人[[74]](#cite-74)也使用了这种方法。两者的主要区别在于训练过程，我们将在[Section 7](#section-7)讨论。
+
+<center id='fig-3'>
+  <img src='./imgs/2019zs-fig3a.png' id='fig-3a'/>
+
+  (a) Fan等人[[72]](#cite-72)，Tatarchenko等人[[83]](#cite-83)，Wang等人[[82]](#cite-82)以及Lin等人[[73]](#cite-73)
+
+  <img src='./imgs/2019zs-fig3b.png' id='fig-3b'/>
+
+  (b) Li等人[[78]](#cite-78)
+
+  <img src='./imgs/2019zs-fig3c.png' id='fig-3c'/>
+
+  (<text>c</text>) Mandikal等人[[21]](#cite-21)，Insafutdinov[[77]](#cite-77)以及Mandikal等人[[81]](#cite-81)
+
+  <img src='./imgs/2019zs-fig3d.png' id='fig-3d'/>
+
+  (d) Gadelha等人[[22]](#cite-22)
+
+  **图3:** 不同的网络结构在基于点的三维重建中的应用
+</center>
+
+&emsp;&emsp;Tatarchenki等人[[83]](#cite-83)、Wang等人[[82]](#cite-82)和Lin等人[[73]](#cite-73)遵循同样的想法，但是他们的解码器回归N个网格，参见[图3(a)](#fig-3a)。每个网格对深度图[[83]](#cite-83)或从该视点可见的表面(x, y, z)坐标[[73]](#cite-72)[[82]](#cite-82)进行编码。由一系列全连接层编码的视点连同输入图像的潜在表示一起被作为解码器输入。另一方面，Li等人[[78]](#cite-78)使用每个视点一个的多分支解码器，参见[图3(b)](#fig-3b)。与[[83]](#cite-83)不同，每个分支从一个给定视点和一个形变场回归一个标准深度图，该形变场使用网格形变单元(GDU)将估计的标准深度图形变化到与输入匹配，然后将重建的网格提升到三维并合并到一起。
+
+&emsp;&emsp;与体素技术类似，基于点的三维重建的香草结构仅恢复低分辨率几何体。对于高分辨率重建，Mandikal 等人[[81]](#cite-81)使用级联的多个网络，参见[图3(c)](#fig-3c)。第一个网络预测低分辨率点云，每个后续块采用先前预测的点云，使用类似于 PointNet[[87]](#cite-87) 或 PointNet++[[88]](#cite-88) 的多层感知器架构(MLP)计算全局特征，并通过在每个点周围的球中应用MLP计算局部特征；然后，局部和全局特征被聚合并反馈给另一个预测稠密点云的MLP；该过程可以递归地重复，直到达到所需的分辨率。
+
+&emsp;&emsp;Mandikal等人[[21]](#cite-21)结合TL嵌入和变分自编码器([图3(c)](#fig-3c))。前者允许将三维点云及其对应视图映射到潜在空间中的同一位置；后者使得能从输入图像重建多个可能的点云。
+
+&emsp;&emsp;最后，基于点的表示可以处理任意拓扑的三维形状。然而，它们需要一个十分受关注的例如Poisson曲面重建[[89]](#cite-89)或SSD[[90]](#cite-90)的后处理步骤来检索3D曲面网格。从输入到获得最终网格的管道无法进行端到端训练，因此，这些方法仅优化在中间表示上定义的辅助损失。
+
+<center id='table4'>
+  <table style="line-height:8px">
+    <tr>
+      <td rowspan='3'></td>
+      <th rowspan='2'>Param.-based</th>
+      <th colspan='2'>Deformation-based</th>
+      <th rowspan='2'>Decoder architecture</th>
+    </tr>
+    <tr>
+      <td>Defo.model</td>
+      <td>Template</td>
+    </tr>
+    <tr style="line-height:20px">
+      <td align='center'>Geometry Images</br>Spherical maps</br>Patch-based</td>
+      <td align='center'>Vertex defo.</br>Morphable</br>FFD</td>
+      <td align='center'>Sphere/ellipse</br>(k-)NN</br>Learned(PCA)</br>Learned(CNN)</td>
+      <td align='center'>FC layers</br>UpConv</td>
+    </tr>
+    <tr align='center'>
+      <td><a href='#cite-52'>[52]</a></td>
+      <td>Geometry Image</td>
+      <td>-</td>
+      <td>-</td>
+      <td>UpConv</td>
+    </tr>
+    <tr align='center' style="line-height:20px">
+      <td><a href='#cite-53'>[53]</a></td>
+      <td>Geometry Image</td>
+      <td>-</td>
+      <td>-</td>
+      <td>ResNet blocks + </br>2 Conv layers</td>
+    </tr>
+    <tr align='center'>
+      <td><a href='#cite-54'>[54]</a></td>
+      <td>Patch-based</td>
+      <td>-</td>
+      <td>-</td>
+      <td>MLP</td>
+    </tr>
+    <tr align='center'>
+      <td><a href='#cite-55'>[55]</a></td>
+      <td>Mesh</td>
+      <td>vertex defo.</td>
+      <td>sphere</td>
+      <td>FC</td>
+    </tr>
+    <tr align='center'>
+      <td><a href='#cite-56'>[56]</a></td>
+      <td>Mesh</td>
+      <td>vertex defo.</td>
+      <td>ellipse</td>
+      <td>GCNN blocks</td>
+    </tr>
+    <tr align='center'>
+      <td><a href='#cite-20'>[20]</a></td>
+      <td>Mesh</td>
+      <td>vertex</td>
+      <td>cube</td>
+      <td>UpConv</td>
+    </tr>
+    <tr align='center'>
+      <td><a href='#cite-57'>[57]</a></td>
+      <td>Mesh</td>
+      <td>vertex defo.</td>
+      <td>Learned(CNN)</td>
+      <td>FC layer</td>
+    </tr>
+    <tr align='center'>
+      <td><a href='#cite-58'>[58]</a></td>
+      <td>Mesh</td>
+      <td>FFD</td>
+      <td>k-NN</td>
+      <td>FC</td>
+    </tr>
+    <tr align='center'>
+      <td><a href='#cite-59'>[59]</a></td>
+      <td>Mesh</td>
+      <td>FFD</td>
+      <td>NN</td>
+      <td>UpConv</td>
+    </tr>
+    <tr align='center'>
+      <td><a href='#cite-60'>[60]</a></td>
+      <td>Mesh</td>
+      <td>FFD</td>
+      <td>k-NN</td>
+      <td>Feed-forward</td>
+    </tr>
+  </table>
+</center>
+
+### <p id='section-6'>6 利用其他线索</p>
+
+&emsp;&emsp;前面几节讨论了直接从二维观测中重建三维对象的方法。本节展示了如何使用附加提示，如：中间表示(intermediate representation)([Section 6.1](#section-6.1))和时间相关性(temporal correlations)([Section 6.2](#section-6.2))来促进三维重建。
+
 ### <p id='cite'>参考文献</p>
 
 <p id='cite-3'>[3] Z. Wu, S. Song, A. Khosla, F. Yu, L. Zhang, X. Tang, and J. Xiao, “3D shapenets: A deep representation for volumetric shapes,” in IEEE CVPR, 2015, pp. 1912–1920.</p>
@@ -387,3 +540,36 @@ $$\cal{V}^\tau = B\Phi(P+\Delta)^\tau\tag{2}$$
 <p id='cite-34'>[34] P.-S. Wang, C.-Y. Sun, Y. Liu, and X. Tong, “Adaptive O-CNN: a patch-based deep representation of 3D shapes,” ACM ToG, p. 217, 2018</p>
 <p id='cite-35'>[35] Y.-P. Cao, Z.-N. Liu, Z.-F. Kuang, L. Kobbelt, and S.-M. Hu, “Learning to reconstruct high-quality 3D shapes with cascaded fully convolutional networks,” in ECCV, 2018</p>
 <p id='cite-36'>[36] C. Hane, S. Tulsiani, and J. Malik, “Hierarchical Surface Prediction,” IEEE PAMI, no. 1, pp. 1–1, 2019</p>
+<p id='cite-37'>[37] B. Curless and M. Levoy, “A volumetric method for building complex models from range images,” CUMINCAD, 1996.</p>
+<p id='cite-38'>[38] I. Cherabier, J. L. Schonberger, M. R. Oswald, M. Pollefeys, and A. Geiger, “Learning Priors for Semantic 3D Reconstruction,” in ECCV, 2018.</p>
+<p id='cite-39'>[39] J. J. Park, P. Florence, J. Straub, R. Newcombe, and S. Lovegrove, “DeepSDF: Learning Continuous Signed Distance Functions for Shape Representation,” in IEEE CVPR, 2019, pp. 165–174.</p>
+<p id='cite-40'>[40] E. Smith and D. Meger, “Improved Adversarial Systems for 3D Object Generation and Reconstruction,” arXiv:1707.09557, 2017</p>
+<p id='cite-41'>[41] G. Riegler, A. O. Ulusoy, and A. Geiger, “OctNet: Learning deep 3D representations at high resolutions,” in IEEE CVPR, vol. 3, 2017.</p>
+<p id='cite-42'>[42] J. Li, K. Xu, S. Chaudhuri, E. Yumer, H. Zhang, and L. Guibas, “GRASS: Generative Recursive Autoencoders for Shape Structures,” ACM TOG, vol. 36, no. 4, p. 52, 2017.</p>
+<p id='cite-43'>[43] Z. Chen and H. Zhang, “Learning implicit fields for generative shape modeling,” in IEEE CVPR, 2019, pp. 5939–5948.</p>
+<p id='cite-44'>[44] M. Tatarchenko, S. R. Richter, R. Ranftl, Z. Li, V. Koltun, and T. Brox, “What do single-view 3d reconstruction networks learn?” in IEEE CVPR, June 2019.</p>
+<p id='cite-45'>[45] X. Han, Z. Li, H. Huang, E. Kalogerakis, and Y. Yu, “Highresolution shape completion using deep neural networks for global structure and local geometry inference,” in IEEE CVPR, 2017, pp. 85–93.</p>
+<p id='cite-46'>[46] B. Yang, S. Rosa, A. Markham, N. Trigoni, and H. Wen, “Dense 3D object reconstruction from a single depth view,” IEEE PAMI, 2018.</p>
+<p id='cite-47'>[47] J. Donahue, L. Anne Hendricks, S. Guadarrama, M. Rohrbach, S. Venugopalan, K. Saenko, and T. Darrell, “Long-term recurrent convolutional networks for visual recognition and description,” in IEEE CVPR, 2015, pp. 2625–2634.</p>
+<p id='cite-48'>[48] O. Ronneberger, P. Fischer, and T. Brox, “U-net: Convolutional networks for biologically-motivatedge segmentation,” in MICCAI, 2015, pp. 234–241.</p>
+<p id='cite-49'>[49] W. E. Lorensen and H. E. Cline, “Marching cubes: A high resolution 3D surface construction algorithm,” vol. 21, no. 4, pp. 163–169, 1987.</p>
+<p id='cite-50'>[50] Y. Liao, S. Donn´e, and A. Geiger, “Deep Marching Cubes: Learning Explicit Surface Representations,” in IEEE CVPR, 2018, pp. 2916–2925.</p>
+<p id='cite-51'>[51] S. R. Richter and S. Roth, “Matryoshka Networks: Predicting 3D Geometry via Nested Shape Layers,” in IEEE CVPR, 2018.</p>
+<p id='cite-52'>[52] A. Sinha, A. Unmesh, Q. Huang, and K. Ramani, “SurfNet: Generating 3D shape surfaces using deep residual networks,” in IEEE CVPR, vol. 1, no. 2, 2017.</p>
+<p id='cite-53'>[53] A. Pumarola, A. Agudo, L. Porzi, A. Sanfeliu, V. Lepetit, and F. Moreno-Noguer, “Geometry-Aware Network for Non-Rigid Shape Prediction From a Single View,” in IEEE CVPR, June 2018.</p>
+<p id='cite-54'>[54] T. Groueix, M. Fisher, V. G. Kim, B. C. Russell, and M. Aubry, “AtlasNet: A papier-Mache Approach to Learning 3D Surface Generation,” in IEEE CVPR, 2018.</p>
+<p id='cite-55'>[55] H. Kato, Y. Ushiku, and T. Harada, “Neural 3D Mesh Renderer,” in IEEE CVPR, 2018.</p>
+<p id='cite-56'>[56] N. Wang, Y. Zhang, Z. Li, Y. Fu, W. Liu, and Y.-G. Jiang, “Pixel2Mesh: Generating 3D Mesh Models from Single RGB Images,” in ECCV, 2018.</p>
+<p id='cite-57'>[57] A. Kanazawa, S. Tulsiani, A. A. Efros, and J. Malik, “Learning Category-Specific Mesh Reconstruction from Image Collections,” ECCV, 2018.</p>
+<p id='cite-58'>[58] D. Jack, J. K. Pontes, S. Sridharan, C. Fookes, S. Shirazi, F. Maire, and A. Eriksson, “Learning free-form deformations for 3D object reconstruction,” ACCV, 2018.</p>
+<p id='cite-59'>[59] A. Kurenkov, J. Ji, A. Garg, V. Mehta, J. Gwak, C. Choy, and S. Savarese, “DeformNet: Free-Form Deformation Network for 3D Shape Reconstruction from a Single Image,” IEEE WACV, 2018.</p>
+<p id='cite-60'>[60] J. K. Pontes, C. Kong, S. Sridharan, S. Lucey, A. Eriksson, and C. Fookes, “Image2Mesh: A Learning Framework for Single Image 3D Reconstruction,” ACCV, 2018.</p>
+<p id='cite-61'>[61] F. Monti, D. Boscaini, J. Masci, E. Rodola, J. Svoboda, and M. M. Bronstein, “Geometric deep learning on graphs and manifolds using mixture model cnns,” in CVPR, vol. 1, no. 2, 2017, p. 3.</p>
+<p id='cite-62'>[62] C. Gotsman, X. Gu, and A. Sheffer, “Fundamentals of spherical parameterization for 3d meshes,” ACM TOG, vol. 22, no. 3, pp. 358–363, 2003.</p>
+<p id='cite-63'>[63] E. Praun and H. Hoppe, “Spherical parametrization and remeshing,” ACM TOG, vol. 22, no. 3, pp. 340–349, 2003.</p>
+<p id='cite-64'>[64] A. Sheffer, E. Praun, K. Rose et al., “Mesh parameterization methods and their applications,” Foundations and Trends R in Computer Graphics and Vision, vol. 2, no. 2, pp. 105–171, 2007.</p>
+<p id='cite-65'>[65] H. Laga, Q. Xie, I. H. Jermyn, A. Srivastava et al., “Numerical inversion of srnf maps for elastic shape analysis of genus-zero surfaces,” IEEE PAMI, vol. 39, no. 12, pp. 2451–2464, 2017.</p>
+<p id='cite-66'>[66] G. Wang, H. Laga, N. Xie, J. Jia, and H. Tabia, “The shape space of 3d botanical tree models,” ACM TOG, vol. 37, no. 1, p. 7, 2018.</p>
+<p id='cite-67'>[67] G. Wang, H. Laga, J. Jia, N. Xie, and H. Tabia, “Statistical modeling of the 3d geometry and topology of botanical trees,” CGF, vol. 37, no. 5, pp. 185–198, 2018.</p>
+<p id='cite-68'>[68] V. Blanz and T. Vetter, “A morphable model for the synthesis of 3d faces,” in Siggraph, 1999, pp. 187–194.</p>
+<p id='cite-69'>[69] S. Vicente, J. Carreira, L. Agapito, and J. Batista, “Reconstructing PASCAL VOC,” in IEEE CVPR, 2014, pp. 41–48.</p>
