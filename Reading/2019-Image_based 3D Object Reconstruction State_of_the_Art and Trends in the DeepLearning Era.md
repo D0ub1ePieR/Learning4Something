@@ -587,7 +587,7 @@ Jiang等人[[74]](#cite-74)也使用了这种方法。两者的主要区别在�
 
 * **<text id='section-7.1.2.1'>7.1.2.1 投影算子</text>**
 
-&emsp;&emsp;射影几何中的技术可以用来渲染三维对象的视图。然而，为实现**无梯度近似**的端到端训练[55]，投影算子应该是**可微**的。Gadelha等人[[27]](#cite-27)引入了一个可微投影算子 $P$ ，定义为 $P((i,\ j),\ V)=1-e^{-\sum_kV(i,j,k)}$，其中，$V$ 是三维体素栅格。此算子汇总沿每条视线的体素占用值。但是，它假定是*正交投影*。Loper和Black[[94]](#cite-94)引入了OpenDR，一个近似可微的渲染器，它适合于*正投影*和*透视投影*。
+&emsp;&emsp;射影几何中的技术可以用来渲染三维对象的视图。然而，为实现**无梯度近似**的端到端训练[[55]](#cite-55)，投影算子应该是**可微**的。Gadelha等人[[27]](#cite-27)引入了一个可微投影算子 $P$ ，定义为 $P((i,\ j),\ V)=1-e^{-\sum_kV(i,j,k)}$，其中，$V$ 是三维体素栅格。此算子汇总沿每条视线的体素占用值。但是，它假定是*正投影*。Loper和Black[[94]](#cite-94)引入了OpenDR，一个近似可微的渲染器，它适合于*正投影*和*透视投影*。
 
 &emsp;&emsp;Petersen等人[[95]](#cite-95)提出了一种用于图像到几何重建的 $C^{\infty}$ 光滑可微渲染器，其思想是：该方法不是进行对像素的三角形可见的离散决策，而是对它们的可见性进行软混合。用相机空间中 $z$ 位置的 $SoftMin$ 构成一个光顺的 $z-buffer$，从而生成一个 $C^{\infty}$ 光顺的渲染器，其中三角形的 $z$ 位置相对于遮挡是可微的。在以前的渲染器中，只有 $xy$ 坐标相对于遮挡是局部可微的。
 
@@ -602,15 +602,105 @@ Jiang等人[[74]](#cite-74)也使用了这种方法。两者的主要区别在�
 <text id='formula-8'></text>
 $${\cal{L}}_{proj}(I)=\frac{1}{n}\sum^n_{j=1}d((P(I);\alpha^{(j)}),S^{(j)}) \tag{8}$$
 
-这里 $S^{(j)}$ 是原始三维对象 $X$ 的第 $j$ 个基准二维轮廓， $n$ 是每个三维模型使用的轮廓或视图数量。
+这里 $S^{(j)}$ 是原始三维对象 $X$ 的第 $j$ 个基准二维轮廓， $n$ 是每个三维模型使用的轮廓或视图数量， $P(\cdot,\cdot)$ 是三维到二维投影函数及 $\alpha^{(j)}$ 是第 $j$ 个轮廓的相机参数。距离度量 $d(\cdot,\cdot)$ 可以是标准 $L_2$ 度量[[77]](#cite-77)、基准轮廓和重建轮廓之间的负覆盖率(IoU)或二元交叉熵损失[[4]](#cite-4)[[24]](#cite-24)。
 
-2. **基于法向和深度损失**。
+&emsp;&emsp;Kundu等人[[31]](#cite-31)介绍了渲染和比较损失(`render-and-compare loss`)，它是根据基准轮廓 $G_s$ 和渲染轮廓 $R_s$ 之间的 $IoU$ 以及基准深度 $G_d$ 和渲染深度 $R_d$ 之间的 $L_2$ 距离定义的，即：
 
-3. **合并多重损失**。
+<text id='formula-9'></text>
+$${\cal{L_r}}=1-IoU(R_s,G_s;I_s)+d_{L_2}(R_d,G_d;I_d) \tag{9}$$
+
+这里 $I_s 和 I_d$ 是二进制忽略掩码(`binary ignore mask`)，在不会给损失贡献的像素处的值为1。因为这种损失是不可微的，Kundu等人[[31]](#cite-31)利用有限差分来逼近其梯度。
+
+&emsp;&emsp;基于轮廓的损失函数在某些视图间无法区分，例如：前视图和后视图。为缓解这个问题，Insafutdinov和Dosovitskiy[[77]](#cite-77)在训练过程中使用了多姿态回归，每个都使用轮廓损失。整个网络是用最小的个体损失来训练，在测试时使用损失最小的预测器。
+
+&emsp;&emsp;Gwak等人[[97]](#cite-97)受制于重建形状是某个类(例如椅子)的有效成员而最小化重投影误差。为将重建限制在形状类的流形中，该方法定义了一个屏障函数(barrier function) $\phi$ ，如果形状在流形中，则将其设置为1，否则设置为0。损失函数是：
+
+<text id='formula-10'></text>
+$${\cal L} = {\cal L_{reprojection}} - \frac{1}{t}log\phi (\hat{X}) \tag{10}$$
+
+屏障函数被理解为 $GAN$ 的判别函数，见[Section 7.3.2](#section7.3.2)。
+
+&emsp;&emsp;最后，Tulsiani等人[[8]](#cite-8)使用可微射线一致性损失(`differentiable ray consistency loss`)定义体素重建的重投影损失。首先，假设估计的形状 $\hat{X}$ 是根据概率占用栅格定义的，让 $(O,C)$ 是一对观察摄影机，也设 $\cal{R}$ 为一组光线，其中每条光线 $r\in \cal{R}$ 以相机中心为原点，并通过相机 $C$ 的图像平面投射。光线一致性损失定义为：
+
+<text id='formula-11'></text>
+$${\cal{L}_{ray\_cons}}(\hat{X};(O,C))=\sum_{r\in \cal{R}}{\cal L_r}(\hat{X}) \tag{11}$$
+
+这里 ${\cal L_r}(\hat{X})$ 捕捉的是：推断的三维模型 $\hat{X}$ 是否正确解释了与特定光线 $r$ 相关的观察。如果观察 $O$ 是基准前景掩码，则在前景像素处取0，在其他地方取1；然后 ${\cal L_r}$ 是光线 $r$ 穿越由在与光线 $r$ 相关联的像素处的掩码值加权的曲面体素的概率，在这个损失相对于网络网络预测是可微的。**注意**：当使用前景掩码作为观察时，这种需要已知相机参数的损失类似于设计来专门使用掩码监督的方法，这种方法使用学习的[[25]](#cite-25)或固定的[[4]](#cite-4)重投影功能。此外，在[[4]](#cite-4)[[24]](#cite-24)中使用的二元交叉熵损失可以被认为是使用射线一致性导出的二元交叉熵损失。
+
+2. **基于法向和深度损失**。诸如曲面法线和深度值等额外线索可用于指导训练过程。设 $n_{x,y}=(n_a,n_b,n_c)$ 为点 $(x,y,z)$ 处曲面的法向量。向量 $n_x=(0,-n_c,n_b)$ 和 $(-n_c,0,n_a)$ 与 $n_{x,y}$ 正交。通过规范化，我们得到两个向量 $n^{'}_x=(0,-1,n_b/n_c)$ 和 $n^{'}_y=(-1,0,n_a/n_c)$。法线损失尝试确保 $(x,y,z)\pm n^{'}_x 和 (x,y,z)\pm n^{'}_y$ 处的体素应为1，以匹配估计的曲面法线。这个约束仅应用于目标体素位于估计轮廓内的情况。投影的表面法向损失为：
+
+<text id='formula-12'></text>
+$${\cal{L}_{normal}}=(1-v_{x,y-1,z+n_b/n_c})^2 + (1-v_{x,y+1,z-n_b/n_c})^2 + (1-v_{x-1,y,z+n_a/n_c})^2 + (1-v_{x+1,y,z-n_a/n_c})^2 \tag{12}$$
+
+&emsp;&emsp;Wu等人[[6]](#cite-6)利用了这一损失，除法向损失外，还包括预计深度损失。其思想是：深度为 $v_{x,y,d_{x,y}}$ 的体素应为1，其前面的所有体素应为0。深度损失定义为：
+
+<text id='formula-13'></text>
+$${\cal L_{depth}}(x,y,z)=\begin{cases}v^2_{x,y,z} & \text{if $z<d_{x,y^{'}}$} \\ (1-v_{x,y,z})^2 & \text{if $z=d_{x,y^{'}}$} \\ 0 & \text{otherwise} \end{cases} \tag{13}$$
+
+这将确保估计的三维形状与估计的深度值匹配。
+
+3. **合并多重损失**。还可以将二维和三维损失组合起来。当某些基准三维数据可用时，这尤其有用。例如，我们可以先使用3D监督训练网络，然后使用二维监督对其进行微调。另一方面，Yan等人[[4]](#cite-4)取二维和三维损失的加权和。
+
+&emsp;&emsp;除重建损失外，还可以对解决方案施加额外的约束。例如，Kato等人[[55]](#cite-55)使用轮廓损失的加权和，定义为真实轮廓和重建轮廓间的负覆盖度(IoU)和光顺度损失。对于曲面，光顺度损失确保相邻面之间的角度接近180度，从而激励平整度。
+
+* **<text id='section-7.1.2.3'>7.1.2.3 摄像机参数与视点估计</text>**
+
+&emsp;&emsp;基于重投影的损失函数使用相机参数将估计的三维形状渲染到图像平面上。一些方法假设一对或多对观测相机可用[[4]](#cite-4)[[8]](#cite-8)[[10]](#cite-10)。这里，观察可以是RGB图像、轮廓/前景掩码或目标3D形状的深度图。其它方法同时对摄像机参数和最能描述输入的3D重建进行优化[[27]](#cite-27)[[77]](#cite-77)。
+
+&emsp;&emsp;Gadelha等人[[27]](#cite27)使用全连接层将输入图像编码为潜在表示和姿势编码，然后将姿势编码用作2D投影模块的输入，该模块将估计的3D体素渲染到输入的视图上。另一方面，Insafutdinov和Dosovitskiy [[77]](#cite77)获取同一个对象的两个视图，从第一个视图预测相应的形状(表示为点云)，从第二个视图预测相机姿势(表示为四元数)；然后，该方法使用可微投影模块从预测的相机姿态生成预测形状的视图。形状和姿态预测器被实现为具有两个分支的卷积网络，该网络从一个卷积编码器开始，共有7层，随后是2个共享的全连接层，然后网络分成用于形状和姿势预测的两个分支，姿势分支被实现为多层感知器。
+
+&emsp;&emsp;有几篇论文只估计了相机姿态[[70]](#cite-70)[[98]](#cite-98)[[99]](#cite-99)。与同时进行重建的技术不同，这些方法只使用姿势标注进行训练。例如，Kendall等人[[98]](#cite-98)介绍了一种卷积神经网络PoseNet，它可以从单个图像估计摄像机的姿态。该网络利用其位置矢量和方向四元数来表示摄像机的姿态，通过训练使基准和估计的姿态之间的 $L_2$ 损失最小。Su等人[[99]](#cite-99)发现：训练用于一个类的视点估计的CNN在另一个类上表现不好，可能由于类之间的巨大几何变化，因此，他们提出了一种网络架构，其中较低层(卷积层和全连接层)由所有类共享，而类别依赖的全连接层堆叠在它们之上。
 
 #### <p id='section-7.2'>7.2 利用视频监督</p>
 
+&emsp;&emsp;另一种显著降低学习对象三维几何所需的监督层次的方法是用运动代替三维监督。为此，Novotni 等[[100]](#cite-100)使用从运动中恢复结构(SfM)来从视频中生成监督信号。也就是说，在训练时，该方法采用视频序列，使用SfM 生成部分点云和相关相机参数[[101]](#cite-101)。然后，使用估计深度图、不确定图和相机参数的网络对每个RGB帧进行处理。使用估计的相机参数将不同的深度估计融合到部分点云中，然后使用点云补全网络PointNet[[87]](#cite-87)进一步处理完成。利用SfM估计值作为监督信号对网络进行训练，也就是说，**损失函数度量由网络估计的深度图与SfM估计的深度图间的差异及网络估计的摄像机参数与SfM估计的摄像机参数间的差异**；在测试时，该网络能够从单个RGB图像恢复完整的3D几何体。
+
 #### <p id='section-7.3'>7.3 训练过程</p>
+
+&emsp;&emsp;除数据集、损失函数和监督程度(degree of supervision)外，在训练用于三维重建的深度学习体系结构时，还需要考虑几个实际方面。
+
+##### <p id='section-7.3.1'>7.3.1 联合2D-3D嵌入</p>
+
+&emsp;&emsp;大多数最新工作将输入(如RGB图像)映射为一个潜在表示，然后将潜在的表示解码为一个3D模型。一个好的潜在表示应该是：**(1)** 在3D中是可生成的(generative)，也就是说我们应该能够从中重建三维中的物体；**(2)** 它必须从2D中可预测，也就是说我们应该能够很容易地从图像中推断出这种表示[[25]](#cite-25)。已经通过在训练阶段使用TL嵌入网络来实现这两个目标，见[图5(a)和(b)](#fig-5)，它由两个联合训练的编码分支组成：2D编码器和3D编码器。它们分别将二维图像及其相应的三维标注映射到潜在空间中的同一点上[[24]](#cite-24)[[25]](#cite-25)。
+
+<center id='fig-5'>
+  <img src='./imgs/2019zs-fig5.png'/>
+
+  图5：在测试时，3D编码器和鉴别器被移除并且只保留突出显示的模块。
+</center>
+
+&emsp;&emsp;Gidhar等人[[25]](#cite-25)使用TL嵌入网络从RGB图像重建体素形状，使用成批(图像、体素)对来训练网络通过渲染三维模型生成图像，然后对网络进行三阶段训练。
+
+* 第一阶段中，随机初始化网络的3D编码器部分及其解码器，然后用sigmoid交叉熵损失进行独立于二维编码器的端到端训练。
+
+* 第二阶段中，训练2D编码器来回归潜在表示编码器为体素生成嵌入，并训练图像网络来回归嵌入。
+
+* 最后阶段联合微调整个网络。
+
+Li等人[[79]](#cite-79)和Mandikal等人[[21]](#cite-21)通过使用点云自编码器替换体素编码器，为基于点云的三维重建扩展了这种方法。
+
+##### <p id='section-7.3.2'>7.3.2 对抗训练</p>
+
+&emsp;&emsp;一般来说，**一个好的重建模型应该能够超越训练中所看到的**。使用标准程序训练的网络可能无法很好得将其推广到看不见的数据。另外，Yang等人[[46]](#cite-46)注意到：标准技术的结果往往是表面粗糙的，缺乏精细的细节。为克服这些问题，最近几篇论文使用生成对抗网络(**GAN**)来训练具有对抗损失的网络。GAN从给定的随机向量生成信号[[102]](#cite-102)，另一方面，条件GAN在输入图像上调节生成的信号，见[[图5-(<text>c</text>)]](#fig-5)，它由 *镜像编码器h的生成器g* 和 *镜像生成器的判别器D* 组成。
+
+&emsp;&emsp;在三维重建的情况下，编码器可以是ConvNet/ResNet[[46]](#cite-46)[[103]](#cite-103)或变分自编码器(VAE)[[17]](#cite-17)。生成器将潜在向量 $x$ 解码为三维形状 $X = g(x)$。判别器只在训练期间使用，它评估解码数据的确实性，它输出三维对象 $X$ 是真实还是合成的(即来自生成器)的0到1间的置信度 $C(X)$。其目的是联合训练生成器和判别器，使重建的形状尽可能接近基准。
+
+&emsp;&emsp;GAN的核心是用于联合训练判别器和生成器的对抗损失函数。遵循Goodfellow等人[[102]](#cite-102)的观点，Wu等人[[17]](#cite-17)用二元交叉熵作为分类损失。总体对抗损失功能定义为：
+
+<text id='formula-14'></text>
+$${\cal{L}}_{3D-GAN}=log(D(X)) + log(1 - D(g(X))) \tag{14}$$
+
+这里 $x=h(I)$ 中 $I$ 是训练形状 $X$ 的二维图像。Yang等人[[46]](#cite-46)[[103]](#cite-103)观察到：原始GAN损失函数呈现真实和假输入间的总体损失；然后，他们提出使用WGAN-GP损失[[104]](#cite-104)[[105]](#cite-105)，它分别表示用于生成伪重构对(`fake reconstruction pair`)的损失和用于区分伪重构对和真实重构对的损失。
+
+&emsp;&emsp;为联合训练网络的三个组件，即：编码器、生成器和判别器，总损失被定义为重建损失之和([Section 7.1](#section-7.1))和GAN损失。当网络使用变分自编码器时，例如：3D VAE-GAN[[17]](#cite-17)，则在总损失中添加一个附加项，以便将变分分布(variational distribution)推向先验分布(prior distribution)。例如，Wu等人[[17]](#cite-17)使用KL散度度量(KL-divergence metric)及具有零中值和单位方差的多元高斯分布(multivariate Gaussian distribution)作为先验分布。
+
+&emsp;&emsp;GAN 的潜力是巨大的，因为它们可以学习模拟数据的任何分布。它们也非常适合于**单视图三维形状重建**，它们已用于体素[[13]](#cite-13)[[17]](#cite-17)[[30]](#cite-30)[[40]](#cite-40)[[46]](#cite-46)[[103]](#cite-103)和点云[[74]](#cite-74)[[75]](#cite-75)重建。它们已用于三维监督[[17]](#cite-17)[[30]](#cite-30)[[40]](#cite-40)[[46]](#cite-46)[[103]](#cite-103)和二维监督[[13]](#cite-13)[[27]](#cite-27)[[97]](#cite-97)，见[Section 7.1.2](#section-7.1.2)。后一种方法用二维轮廓图像训练单个判别器。然而，在看似合理的形状中，仍有同样适合二维图像的多个形状。为解决这种模糊性，Wu等人[[91]](#cite-91)在预测的3D形状不自然时使用GAN的判别器来惩罚3D估计器。另一方面，Li等人[[106]](#cite-106)使用多个判别器，每个视图一个，从而产生更好的生成质量。
+
+&emsp;&emsp;GAN很难训练，特别是对于许多类别和方向的三维对象上的复杂联合数据分布。对于高分辨率形状，它们也变得不稳定。事实上，我们必须仔细平衡生成器和判别器的学习，否则梯度可能消失，这将阻止优化[[40]](#cite-40)。为解决这个问题，Smith和Meger[[40]](#cite-40)及后来的Wu等人[[91]](#cite-91)以用梯度惩罚法进行归一化的Wasserstein距离为训练目标。
+
+##### <p id='section-7.3.3'>7.3.3 利用其它任务联合训练</p>
+
+&emsp;&emsp;与单任务训练相比，重建和分割的联合训练以提高两个任务的性能。Mandikal等人[[107]](#cite-107)提出了一种从一幅RGB图像中生成部件分割(part-segmented)的3D点云重建方法，其思想是：在两个任务间传播信息，以在提高分割精度的同时生成更可靠的部件重建，这是通过使用倒角距离定义的重建损失和使用对称softmax 交叉熵损失定义的分割损失的加权和来完成的。
 
 ### <p id='cite'>参考文献</p>
 
@@ -681,3 +771,64 @@ $${\cal{L}}_{proj}(I)=\frac{1}{n}\sum^n_{j=1}d((P(I);\alpha^{(j)}),S^{(j)}) \tag
 <p id='cite-67'>[67] G. Wang, H. Laga, J. Jia, N. Xie, and H. Tabia, “Statistical modeling of the 3d geometry and topology of botanical trees,” CGF, vol. 37, no. 5, pp. 185–198, 2018.</p>
 <p id='cite-68'>[68] V. Blanz and T. Vetter, “A morphable model for the synthesis of 3d faces,” in Siggraph, 1999, pp. 187–194.</p>
 <p id='cite-69'>[69] S. Vicente, J. Carreira, L. Agapito, and J. Batista, “Reconstructing PASCAL VOC,” in IEEE CVPR, 2014, pp. 41–48.</p>
+<p id='cite-70'>[70] S. Tulsiani, A. Kar, J. Carreira, and J. Malik, “Learning categoryspecific deformable 3D models for object reconstruction,” IEEE PAMI, vol. 39, no. 4, pp. 719–731, 2017</p>
+<p id='cite-71'>[71] J. K. Pontes, C. Kong, A. Eriksson, C. Fookes, S. Sridharan, and S. Lucey, “Compact model representation for 3D reconstruction,” 3DV, 2017</p>
+<p id='cite-72'>[72] H. Fan, H. Su, and L. Guibas, “A point set generation network for 3D object reconstruction from a single image,” in IEEE CVPR, vol. 38, 2017.</p>
+<p id='cite-73'>[73] C.-H. Lin, C. Kong, and S. Lucey, “Learning Efficient Point Cloud Generation for Dense 3D Object Reconstruction,” AAAI, 2018</p>
+<p id='cite-74'>[74] L. Jiang, S. Shi, X. Qi, and J. Jia, “GAL: Geometric Adversarial Loss for Single-View 3D-Object Reconstruction,” in ECCV, 2018</p>
+<p id='cite-75'>[75] C.-L. Li, M. Zaheer, Y. Zhang, B. Poczos, and R. Salakhutdinov, “Point cloud GAN,” ICLR Workshop on Deep Generative Models for Highly Structured Data, 2019.</p>
+<p id='cite-76'>[76] Y. Sun, Y. Wang, Z. Liu, J. E. Siegel, and S. E. Sarma, “Point-Grow: Autoregressively learned point cloud generation with selfattention,” arXiv:1810.05591, 2018</p>
+<p id='cite-77'>[77] E. Insafutdinov and A. Dosovitskiy, “Unsupervised learning of shape and pose with differentiable point clouds,” in NIPS, 2018, pp. 2802–2812</p>
+<p id='cite-78'>[78] K. Li, T. Pham, H. Zhan, and I. Reid, “Efficient dense point cloud object reconstruction using deformation vector fields,” in ECCV, 2018, pp. 497–513</p>
+<p id='cite-79'>[79] K. Li, R. Garg, M. Cai, and I. Reid, “Single-view object shape reconstruction using deep shape prior and silhouette,” arXiv:1811.11921, 2019</p>
+<p id='cite-80'>[80] W. Zeng, S. Karaoglu, and T. Gevers, “Inferring Point Clouds from Single Monocular Images by Depth Intermediation,” arXiv:1812.01402, 2018</p>
+<p id='cite-81'>[81] P. Mandikal and V. B. Radhakrishnan, “Dense 3D Point Cloud Reconstruction Using a Deep Pyramid Network,” in IEEEWACV, 2019, pp. 1052–1060</p>
+<p id='cite-82'>[82] J. Wang, B. Sun, and Y. Lu, “MVPNet: Multi-View Point Regression Networks for 3D Object Reconstruction from A Single Image,” arXiv:1811.09410, 2018</p>
+<p id='cite-83'>[83] M. Tatarchenko, A. Dosovitskiy, and T. Brox, “Multi-view 3D models from single images with a convolutional network,” in ECCV, 2016, pp. 322–337</p>
+<p id='cite-84'>[84] P. J. Besl and N. D. McKay, “Method for registration of 3-d shapes,” in Sensor Fusion IV: Control Paradigms and Data Structures, vol. 1611. International Society for Optics and Photonics, 1992, pp. 586–607</p>
+<p id='cite-85'>[85] Y. Chen and G. Medioni, “Object modelling by registration of multiple range images,” Image and vision computing, vol. 10, no. 3, pp. 145–155, 1992</p>
+<p id='cite-86'>[86] H. Xie, H. Yao, X. Sun, S. Zhou, S. Zhang, and X. Tong, “Pix2Vox: Context-aware 3D Reconstruction from Single and Multi-view Images,” IEEE ICCV, 2019</p>
+<p id='cite-87'>[87] C. R. Qi, H. Su, K. Mo, and L. J. Guibas, “PointNet: Deep learning on point sets for 3d classification and segmentation,” in IEEE CVPR, 2017, pp. 652–660</p>
+<p id='cite-88'>[88] C. R. Qi, L. Yi, H. Su, and L. J. Guibas, “PointNet++: Deep hierarchical feature learning on point sets in a metric space,” in NIPS, 2017, pp. 5099–5108.</p>
+<p id='cite-89'>[89] M. Kazhdan and H. Hoppe, “Screened poisson surface reconstruction,” ACM TOG, vol. 32, no. 3, p. 29, 2013</p>
+<p id='cite-90'>[90] F. Calakli and G. Taubin, “Ssd: Smooth signed distance surface reconstruction,” CGF, vol. 30, no. 7, pp. 1993–2002, 2011</p>
+<p id='cite-91'>[91] J. Wu, C. Zhang, X. Zhang, Z. Zhang, W. T. Freeman, and J. B. Tenenbaum, “Learning shape priors for single-view 3d completion and reconstruction,” in ECCV, 2018</p>
+<p id='cite-92'>[92] X. Zhang, Z. Zhang, C. Zhang, J. Tenenbaum, B. Freeman, and J. Wu, “Learning to reconstruct shapes from unseen classes,” in NIPS, 2018, pp. 2257–2268</p>
+<p id='cite-93'>[93] E. Smith, S. Fujimoto, and D. Meger, “Multi-view silhouette and depth decomposition for high resolution 3D object representation,” in NIPS, 2018, pp. 6478–6488</p>
+<p id='cite-94'>[94] M. M. Loper and M. J. Black, “Opendr: An approximate differentiable renderer,” in ECCV, 2014, pp. 154–169</p>
+<p id='cite-95'>[95] F. Petersen, A. H. Bermano, O. Deussen, and D. Cohen-Or, “Pix2Vex: Image-to-Geometry Reconstruction using a Smooth Differentiable Renderer,” arXiv:1903.11149, 2019</p>
+<p id='cite-96'>[96] D. t. Rezende, S. A. Eslami, S. Mohamed, P. Battaglia, M. Jaderberg, and N. Heess, “Unsupervised learning of 3D structure from images,” in NIPS, 2016, pp. 4996–5004</p>
+<p id='cite-97'>[97] J. Gwak, C. B. Choy, A. Garg, M. Chandraker, and S. Savarese, “Weakly Supervised Generative Adversarial Networks for 3D Reconstruction,” 3D Vision, 2017</p>
+<p id='cite-98'>[98] A. Kendall, M. Grimes, and R. Cipolla, “PoseNet: A convolutional network for real-time 6-DOF camera relocalization,” in IEEE ICCV, 2015, pp. 2938–2946</p>
+<p id='cite-99'>[99] H. Su, C. R. Qi, Y. Li, and L. J. Guibas, “Render for CNN: Viewpoint estimation in images using CNNs trained with rendered 3D model views,” in IEEE ICCV, 2015, pp. 2686–2694</p>
+<p id='cite-100'>[100] D. Novotny, D. Larlus, and A. Vedaldi, “Capturing the geometry of object categories from video supervision,” IEEE PAMI, 2018</p>
+<p id='cite-101'>[101] J. L. Schonberger and J.-M. Frahm, “Structure-from-motion revisited,” in IEEE CVPR, 2016, pp. 4104–4113</p>
+<p id='cite-102'>[102] I. Goodfellow, J. Pouget-Abadie, M. Mirza, B. Xu, D. Warde-Farley, S. Ozair, A. Courville, and Y. Bengio, “Generative Adversarial Nets,” in NIPS, 2014, pp. 2672–2680</p>
+<p id='cite-103'>[103] B. Yang, H. Wen, S. Wang, R. Clark, A. Markham, and N. Trigoni, “3D object reconstruction from a single depth view with adversarial learning,” in IEEE ICCV Workshops, 2017, pp. 679–688.</p>
+<p id='cite-104'>[104] M. Arjovsky, S. Chintala, and L. Bottou, “Wasserstein GAN,” ICML, 2017</p>
+<p id='cite-105'>[105] I. Gulrajani, F. Ahmed, M. Arjovsky, V. Dumoulin, and A. C. Courville, “Improved training of Wasserstein GANs,” in NIPS, 2017, pp. 5767–5777</p>
+<p id='cite-106'>[106] X. Li, Y. Dong, P. Peers, and X. Tong, “Synthesizing 3d shapes from silhouette image collections using multi-projection generative adversarial networks,” in IEEE CVPR, June 2019</p>
+<p id='cite-107'>[107] P. Mandikal, N. KL, and R. Venkatesh Babu, “3D-PSRNet: Part segmented 3D point cloud reconstruction from a single image,” in ECCV, 2018, pp. 0–0</p>
+<p id='cite-108'>[108] E. Dibra, H. Jain, C. O¨ ztireli, R. Ziegler, and M. Gross, “Hs-nets: Estimating human body shape from silhouettes with convolutional neural networks,” in 3D Vision, 2016, pp. 108–117</p>
+<p id='cite-109'>[109] E. Dibra, H. Jain, C. Oztireli, R. Ziegler, and M. Gross, “Human shape from silhouettes using generative hks descriptors and cross-modal neural networks,” in IEEE CVPR (CVPR), Honolulu, HI, USA, vol. 5, 2017</p>
+<p id='cite-110'>[110] T. Alldieck, M. Magnor, B. L. Bhatnagar, C. Theobalt, and G. Pons-Moll, “Learning to Reconstruct People in Clothing from a Single RGB Camera,” in IEEE CVPR, 2019</p>
+<p id='cite-111'>[111] B. L. Bhatnagar, G. Tiwari, C. Theobalt, and G. Pons-Moll, “Multi-Garment Net: Learning to Dress 3D People from Images,” in IEEE ICCV, 2019</p>
+<p id='cite-112'>[112] B. Allen, B. Curless, and Z. Popovi´c, “The space of human body shapes: reconstruction and parameterization from range scans,” ACM TOG, vol. 22, no. 3, pp. 587–594, 2003</p>
+<p id='cite-113'>[113] D. Anguelov, P. Srinivasan, D. Koller, S. Thrun, J. Rodgers, and J. Davis, “Scape: shape completion and animation of people,” ACM TOG, vol. 24, no. 3, pp. 408–416, 2005</p>
+<p id='cite-114'>[114] M. Loper, N. Mahmood, J. Romero, G. Pons-Moll, and M. J. Black, “SMPL: A skinned multi-person linear model,” ACM TOG, vol. 34, no. 6, p. 248, 2015</p>
+<p id='cite-115'>[115] J. Sun, M. Ovsjanikov, and L. Guibas, “A concise and provably informative multi-scale signature based on heat diffusion,” CGF, vol. 28, no. 5, pp. 1383–1392, 2009</p>
+<p id='cite-116'>[116] F. Bogo, A. Kanazawa, C. Lassner, P. Gehler, J. Romero, and M. J. Black, “Keep it SMPL: Automatic estimation of 3D human pose and shape from a single image,” in ECCV, 2016, pp. 561–578</p>
+<p id='cite-117'>[117] M. Omran, C. Lassner, G. Pons-Moll, P. Gehler, and B. Schiele, “Neural Body Fitting: Unifying Deep Learning and Model Based Human Pose and Shape Estimation,” in 3DV, 2018</p>
+<p id='cite-118'>[118] T. Alldieck, G. Pons-Moll, C. Theobalt, and M. Magnor, “Tex2Shape: Detailed Full Human Body Geometry from a Single Image,” in IEEE ICCV, 2019</p>
+<p id='cite-119'>[119] L. Pishchulin, E. Insafutdinov, S. Tang, B. Andres, M. Andriluka, P. V. Gehler, and B. Schiele, “Deepcut: Joint subset partition and labeling for multi person pose estimation,” in IEEE CVPR, 2016, pp. 4929–4937</p>
+<p id='cite-120'>[120] A. Kanazawa, M. J. Black, D.W. Jacobs, and J. Malik, “End-to-end recovery of human shape and pose,” CVPR, 2018</p>
+<p id='cite-121'>[121] Z. Huang, T. Li, W. Chen, Y. Zhao, J. Xing, C. LeGendre, L. Luo, C. Ma, and H. Li, “Deep volumetric video from very sparse multiview performance capture,” in ECCV, 2018, pp. 336–354</p>
+<p id='cite-122'>[122] G. Varol, D. Ceylan, B. Russell, J. Yang, E. Yumer, I. Laptev, and C. Schmid, “BodyNet: Volumetric Inference of 3D Human Body Shapes,” in ECCV, 2018</p>
+<p id='cite-123'>[123] T. F. Cootes, G. J. Edwards, and C. J. Taylor, “Active appearance models,” IEEE PAMI, no. 6, pp. 681–685, 2001</p>
+<p id='cite-124'>[124] T. Gerig, A. Morel-Forster, C. Blumer, B. Egger, M. Luthi, S. Sch¨onborn, and T. Vetter, “Morphable face models-an open framework,” in IEEE FG, 2018, pp. 75–82</p>
+<p id='cite-125'>[125] O. M. Parkhi, A. Vedaldi, A. Zisserman et al., “Deep face recognition.” in BMVC, vol. 1, no. 3, 2015, p. 6</p>
+<p id='cite-126'>[126] F. Schroff, D. Kalenichenko, and J. Philbin, “Facenet: A unified embedding for face recognition and clustering,” in IEEE CVPR, 2015, pp. 815–823</p>
+<p id='cite-127'>[127] A. T. Tran, T. Hassner, I. Masi, and G. Medioni, “Regressing robust and discriminative 3D morphable models with a very deep neural network,” in IEEE CVPR, 2017, pp. 1493–1502</p>
+<p id='cite-128'>[128] E. Richardson, M. Sela, and R. Kimmel, “3D face reconstruction by learning from synthetic data,” in 3D Vision, 2016, pp. 460–469</p>
+<p id='cite-129'>[129] E. Richardson, M. Sela, R. Or-El, and R. Kimmel, “Learning detailed face reconstruction from a single image,” CoRR, vol. abs/1611.05053, 2016. [Online]. Available: http://arxiv.org/abs/1611.05053</p>
+<p id='cite-130'>[130] K. Genova, F. Cole, A. Maschinot, A. Sarna, D. Vlasic, and W. T. Freeman, “Unsupervised Training for 3D Morphable Model Regression,” in IEEE CVPR, 2018</p>
