@@ -805,7 +805,28 @@ $$CE=\frac{1}{N}\sum_{i=1}^N\{p_ilog\hat p_i+(1-p_i)log(1-\hat p_i)\} \tag{17}$$
 
 &emsp;&emsp;经过近五年的广泛研究，利用深度学习技术实现了基于图像的三维重建有希望的结果。然而，这一专题仍处于初级阶段，有待进一步发展。本节中，我们将介绍当前问题和未来研究的重点方向。
 
-1. **训练数据问题**。
+1. **训练数据问题**。深度学习技术的成功在很大程度上取决于训练数据的可用性。不幸的是，与用于分类和识别等任务的训练数据集相比，包含图像及其3D标注的公开数据集的规模很小。二维监督技术已被用来解决缺乏三维训练数据的问题。然而，它们中的许多依赖于基于轮廓的监督，因此只能重建视觉外壳。因此，我们期望在未来看到更多的论文提出 **新的大规模数据集**、**利用各种视觉线索的新的弱监督和无监督方法** 及 **新的域适应技术**，其中使用来自某个领域的数据训练的网络(例如合成渲染图像)在最少的重训练和监督下适应新的领域，例如野外拍摄的。研究能够缩小真实图像和合成地渲染图像间鸿沟的真实感渲染技术可能有助于解决训练数据问题。
+
+2. **对未看见对象的泛化**。大多数论文将一个数据集分成三个子集进行训练、验证和测试，例如ShapeNet或Pix3D，然后报告测试子集的性能。但是，还不清楚这些方法**如何在完全不可见的对象或图像类别上执行**。实际上，三维重建方法的最终目标是能够从任意图像中重建任意三维形状。然而，基于学习的技术仅在训练集覆盖的图像和对象上表现良好 。最近的一些论文，如Cherabier等[[38]](#cite-38)，开始解决这个问题。然而，未来研究的一个有趣方向是将 **传统和基于学习的技术结合起来改进后一种方法的泛化能力**。
+
+3. **精细尺度三维重建**。目前最先进的技术能够恢复形状的粗略三维结构。尽管最近的工作已经通过使用细化模块显著地提高了重建的分辨率，但是 **仍然无法恢复植物、头发和毛发等细小的部分**。
+
+4. **重建与识别**。图像三维重建是一个不适定问题。因此，**有效的解决方法需要结合低层次的图像线索、结构知识和高层次的对象理解**。如Tatarchenko等人[[44]](#cite-44)最近的论文所述：**基于深度学习的重建方法偏向于识别和检索**。。因此，它们中的许多没有很好地泛化并无法恢复精细尺度的细节。因此，我们期望在未来看到更多关于如何将 **自顶向下的方法(即识别、分类和检索)与自下而上的方法(即基于几何和光度线索的像素级重建)** 相结合的研究这也有可能提高方法的泛化能力，见上文第(2)项。
+
+5. **专业实例重建**。我们期望在未来看到类别特定的知识建模和基于深度学习的三维重建之间的更多协同作用，以便利用领域特定的知识。事实上，人们对重建方法越来越感兴趣，这些方法专门用于特定类别的物体，如:人体和身体部位(我们在本次调查中简要介绍过)、车辆、动物[[57]](#cite-57)、树木和建筑物。**专门的方法利用先验和领域特定的知识来优化网络体系结构及其训练过程**，因此，它们通常比一般框架表现得更好。然而，与基于深度学习的三维重建类似，通过使用高级统计形状模型[[65]](#cite-65)[[66]](#cite-66)[[67]](#cite-67)[[158]](#cite-158)[[159]](#cite-159)等先验知识建模需要三维标注，这对于许多类别的形状(例如野生动物)来说是不容易获得的。
+
+6. **遮挡和杂乱背景下多对象的处理**。大多数最先进的技术处理包含单个对象的图像。然而，在一般图像中，包含不同类别的多个对象。以前的工作采用检测，然后在感兴趣的区域内重建，例如[[138]](#cite-138)。检测和重建模块彼此独立工作，然而，这些任务是相互关联的，如果共同解决可以从中受益。为实现这一目标，应处理两个重要问题 一是缺乏多目标重建的训练数据。其次，设计合适的CNN结构、损失函数和学习方法是非常重要的，特别是对于没有3D监督的训练方法。通常这些方法使用需要精确对象级分割的基于轮廓的损失函数。
+
+7. **3D视频**。本文主要研究了一幅或多幅图像的三维重建，但没有时间相关性。然而，人们对3D视频越来越感兴趣，即对连续帧在时间上相关的整个视频流的3D重建。一方面，帧序列的可用性可以改善重建，因为可以利用后续帧中可用的附加信息来消除歧义并细化当前帧处的重建，另一方面，重建在跨帧时应该平滑一致。
+
+8. **走向全三维场景解析**。最后，最终目标是能够从一个或多个图像中语义分析完整的三维场景。这需要联合检测、识别和重建，它还需要捕获和建模 **对象之间和对象部件之间的空间关系和交互**。虽然在过去有一些尝试来解决这个问题，但它们大多局限于对组成场景的对象的几何和位置有很强假设的室内场景。
+
+***
+### <p id='section-12'>12 总结和结论</p>
+
+&emsp;&emsp;本文综述了近五年来利用深度学习技术进行基于图像的三维物体重建的研究进展。我们将最新技术分为基于体素、基于表面和基于点的技术。然后，我们根据输入、网络结构和使用的训练机制讨论了每一类方法。我们还讨论并比较了一些关键方法的性能。
+
+&emsp;&emsp;这项调查的重点是将三维重建定义为从一个或多个RGB图像中恢复对象的三维几何体问题的方法。然而，还有许多其它相关问题也有类似的解决办法。最接近的主题包括RGB图像的深度重建，最近已使用深度学习技术进行了处理，参见最近的Laga调研[[153]](#cite-153)，3D形状补全[[26]](#cite-26)[[28]](#cite-28)[[45]](#cite-45)[[103]](#cite-103)[[156]](#cite-156)[[160]](#cite-160)[[161]](#cite-161)、可以看作是3D融合和补全问题的从深度图像中3D重建[[103]](#cite-103)，从手绘二维草图[[162]](#cite-162)[[163]](#cite-163)的三维重建和建模，新视图合成[[164]](#cite-164)[[165]](#cite-165)和三维形状结构恢复[[10]](#cite-10)[[29]](#cite-29)[[83]](#cite-83)[[96]](#cite-96)。在过去5年中，这些问题已得到广泛调查，需要单独的调研论文 。
 
 ### <p id='cite'>参考文献</p>
 
@@ -937,3 +958,38 @@ $$CE=\frac{1}{N}\sum_{i=1}^N\{p_ilog\hat p_i+(1-p_i)log(1-\hat p_i)\} \tag{17}$$
 <p id='cite-128'>[128] E. Richardson, M. Sela, and R. Kimmel, “3D face reconstruction by learning from synthetic data,” in 3D Vision, 2016, pp. 460–469</p>
 <p id='cite-129'>[129] E. Richardson, M. Sela, R. Or-El, and R. Kimmel, “Learning detailed face reconstruction from a single image,” CoRR, vol. abs/1611.05053, 2016. [Online]. Available: http://arxiv.org/abs/1611.05053</p>
 <p id='cite-130'>[130] K. Genova, F. Cole, A. Maschinot, A. Sarna, D. Vlasic, and W. T. Freeman, “Unsupervised Training for 3D Morphable Model Regression,” in IEEE CVPR, 2018</p>
+<p id='cite-131'>[131] A. Tewari, M. Zollhofer, H. Kim, P. Garrido, F. Bernard, P. Perez, and C. Theobalt, “Mofa: Model-based deep convolutional face autoencoder for unsupervised monocular reconstruction,” in IEEE CVPR, 2017, pp. 1274–1283</p>
+<p id='cite-132'>[132] A. S. Jackson, A. Bulat, V. Argyriou, and G. Tzimiropoulos, “Large pose 3d face reconstruction from a single image via direct volumetric cnn regression,” in IEEE CVPR, 2017, pp. 1031–1039</p>
+<p id='cite-133'>[133] M. Sela, E. Richardson, and R. Kimmel, “Unrestricted facial geometry reconstruction using image-to-image translation,” in IEEE CVPR, 2017, pp. 1576–1585</p>
+<p id='cite-134'>[134] M. Feng, S. Zulqarnain Gilani, Y. Wang, and A. Mian, “3d face reconstruction from light field images: A model-free approach,” in ECCV, 2018, pp. 501–518</p>
+<p id='cite-135'>[135] J. D’Errico, “Surface fitting using gridfit,” MATLAB central file exchange, vol. 643, 2005.</p>
+<p id='cite-136'>[136] H. Izadinia, Q. Shan, and S. M. Seitz, “Im2cad,” in IEEE CVPR, 2017, pp. 5134–5143.</p>
+<p id='cite-137'>[137] S. Ren, K. He, R. Girshick, and J. Sun, “Faster R-CNN: Towards real-time object detection with region proposal networks,” in NIPS, 2015, pp. 91–99.</p>
+<p id='cite-138'>[138] S. Tulsiani, S. Gupta, D. F. Fouhey, A. A. Efros, and J. Malik, “Factoring shape, pose, and layout from the 2D image of a 3D scene,” in IEEE CVPR, 2018, pp. 302–310</p>
+<p id='cite-139'>[139] A. X. Chang, T. Funkhouser, L. Guibas, P. Hanrahan, Q. Huang, Z. Li, S. Savarese, M. Savva, S. Song, H. Su et al., “Shapenet: An information-rich 3D model repository,” arXiv:1512.03012, 2015</p>
+<p id='cite-140'>[140] J. J. Lim, H. Pirsiavash, and A. Torralba, “Parsing ikea objects: Fine pose estimation,” in IEEE ICCV, 2013, pp. 2992–2999</p>
+<p id='cite-141'>[141] Y. Xiang, R. Mottaghi, and S. Savarese, “Beyond pascal: A benchmark for 3D object detection in the wild,” in IEEE WACV, 2014, pp. 75–82</p>
+<p id='cite-142'>[142] Y. Xiang, W. Kim, W. Chen, J. Ji, C. Choy, H. Su, R. Mottaghi, L. Guibas, and S. Savarese, “ObjectNet3D: A large scale database for 3D object recognition,” in ECCV, 2016, pp. 160–176</p>
+<p id='cite-143'>[143] A. Geiger, P. Lenz, and R. Urtasun, “Are we ready for autonomous driving? the kitti vision benchmark suite,” in IEEE CVPR, 2012, pp. 3354–3361</p>
+<p id='cite-144'>[144] A. Dai, A. X. Chang, M. Savva, M. Halber, T. Funkhouser, and M. Nießner, “Scannet: Richly-annotated 3d reconstructions of indoor scenes,” in IEEE CVPR, 2017</p>
+<p id='cite-145'>[145] J. Krause, M. Stark, J. Deng, and L. Fei-Fei, “3D object representations for fine-grained categorization,” in IEEE CVPR Workshops, 2013, pp. 554–561</p>
+<p id='cite-146'>[146] P. Welinder, S. Branson, T. Mita, C. Wah, F. Schroff, S. Belongie, and P. Perona, “Caltech-UCSD Birds 200,” no. Technical Report: CNS-TR-2010-001</p>
+<p id='cite-147'>[147] C. Wah, S. Branson, P. Welinder, P. Perona, and S. Belongie, “The Caltech-UCSD Birds-200-2011 Dataset,” no. Technical Report: CNS-TR-2011-001, 2011.</p>
+<p id='cite-148'>[148] S. Song, F. Yu, A. Zeng, A. X. Chang, M. Savva, and T. Funkhouser, “Semantic scene completion from a single depth image,” in IEEE CVPR, 2017, pp. 1746–1754</p>
+<p id='cite-149'>[149] I. Armeni, O. Sener, A. R. Zamir, H. Jiang, I. Brilakis, M. Fischer, and S. Savarese, “3d semantic parsing of large-scale indoor spaces,” in IEEE CVPR, 2016</p>
+<p id='cite-150'>[150] I. Armeni, S. Sax, A. R. Zamir, and S. Savarese, “Joint 2d-3dsemantic data for indoor scene understanding,” arXiv preprint arXiv:1702.01105, 2017</p>
+<p id='cite-151'>[151] H. Riemenschneider, A. B´odis-Szomor ´ u, J. Weissenberg, and L. Van Gool, “Learning where to classify in multi-view semantic segmentation,” in ECCV, 2014, pp. 516–532</p>
+<p id='cite-152'>[152] N. Silberman, D. Hoiem, P. Kohli, and R. Fergus, “Indoor segmentation and support inference from rgbd images,” ECCV, pp. 746–760, 2012</p>
+<p id='cite-153'>[153] H. Laga, “A survey on deep learning architectures for imagebased depth reconstruction,” Under Review (paper available on ArXiv), 2019</p>
+<p id='cite-154'>[154] I. R. Ward, H. Laga, and M. Bennamoun, “RGB-D image-based Object Detection: from Traditional Methods to Deep Learning Techniques,” arXiv preprint arXiv:1907.09236, 2019</p>
+<p id='cite-155'>[155] H. Kato and T. Harada, “Learning view priors for single-view 3d reconstruction,” IEEE CVPR, 2019.</p>
+<p id='cite-156'>[156] J. Varley, C. DeChant, A. Richardson, J. Ruales, and P. Allen, “Shape completion enabled robotic grasping,” in IEEE/RSJ IROS, 2017, pp. 2442–2447</p>
+<p id='cite-157'>[157] L. Mescheder, M. Oechsle, M. Niemeyer, S. Nowozin, and A. Geiger, “Occupancy Networks: Learning 3D Reconstruction in Function Space,” IEEE CVPR, 2019</p>
+<p id='cite-158'>[158] S. Kurtek, A. Srivastava, E. Klassen, and H. Laga, “Landmarkguided elastic shape analysis of spherically-parameterized surfaces,” vol. 32, no. 2pt4, pp. 429–438, 2013</p>
+<p id='cite-159'>[159] H. Laga, “A survey on nonrigid 3d shape analysis,” in Academic Press Library in Signal Processing, Volume 6. Elsevier, 2018, pp. 261–304</p>
+<p id='cite-160'>[160] J. Zelek and N. Lunscher, “Point cloud completion of foot shape from a single depth map for fit matching using deep learning view synthesis,” in IEEE ICCV Workshop, 2017, pp. 2300–2305</p>
+<p id='cite-161'>[161] O. Litany, A. Bronstein, M. Bronstein, and A. Makadia, “Deformable shape completion with graph convolutional autoencoders,” arXiv:1712.00268, 2017</p>
+<p id='cite-162'>[162] Z. Lun, M. Gadelha, E. Kalogerakis, S. Maji, and R. Wang, “3D Shape Reconstruction from Sketches via Multi-view Convolutional Networks,” 3D Vision, 2017</p>
+<p id='cite-163'>[163] J. Delanoy, M. Aubry, P. Isola, A. A. Efros, and A. Bousseau, “3D Sketching using Multi-View Deep Volumetric Prediction,” ACM ToG, vol. 1, no. 1, p. 21, 2018</p>
+<p id='cite-164'>[164] C. Li, M. Z. Zia, Q.-H. Tran, X. Yu, G. D. Hager, and M. Chandraker, “Deep supervision with shape concepts for occlusionaware 3D object parsing,” in IEEE CVPR, vol. 1, 2017</p>
+<p id='cite-165'>[165] C. Niu, J. Li, and K. Xu, “Im2Struct: Recovering 3D Shape Structure from a Single RGB Image,” IEEE CVPR, vol. 4096, p. 80, 2018.</p>
