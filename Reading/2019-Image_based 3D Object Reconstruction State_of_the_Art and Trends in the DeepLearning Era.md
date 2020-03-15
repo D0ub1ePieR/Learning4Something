@@ -40,27 +40,16 @@
   * **[第十一节](#section-11)** 讨论未来可能的研究方向
   * **[第十二节](#section-12)** 以一些重要的评语结束论文。
 
-<p id='cite-1'>[1] R. Hartley and A. Zisserman, Multiple view geometry in computer vision. Cambridge university press, 2003</p>
-<p id='cite-2'>[2] A. Laurentini, “The visual hull concept for silhouette-based image understanding,” IEEE TPAMI, vol. 16, no. 2, pp. 150–162, 1994</p>
-
 ***
 ### <p id='section-2'>2 问题陈述和分类</p>
-
 &emsp;&emsp;让$I=\{I_k,k=1,\cdots,n\}$ 为一组$n\geq1$的关于一个或多个物体$X$的RGB图片。三维重建可以被描述为学习一个预测器$f_\theta$能够推断出一个形状 $\hat{X}$ 与未知的形状 $X$足够接近的过程。换句话说，函数$f_\theta$是最小化重建目标$L(I)=d(f_\theta(I), X)$ 的结果。这里 $\theta$是一组$f$的参数，$d(\cdot,\cdot)$ 是一种目标形状$X$与重建形状$f(I)$ 之间特定的距离。重建目标$L$在深度学习文献中也称为损失函数。
-
-&emsp;&emsp;这个调查根据 **输入$I$**、**输出的表示**、**在训练和测试中使用深度神经网络结构来近似预测因子$f$**、**使用的训练方法** 和 **他们的监督** 的性质来讨论和分类当前的技术状态，见[表1](#table-1)查看一个可视化的摘要。特别地，输入$I$可以为
-  - 单幅图像
-  - 使用RGB相机拍摄的多幅图像，其内部和外部参数可以是已知的，也可以是未知的
-  - 一段视频序列(e.g.具有时间相关性的图像序列)  
-
-第一种情况非常具有挑战性，因为三维重建的模糊性。当输入是视频流时，可以利用时间相关性来实现三维重建，同时确保重建视频流的所有帧是平滑和一致的。此外，输入可以描绘一个或多个属于已知或未知形状类别的3D对象。它还可以包含额外的信息，如轮廓、分割掩码和语义标签，作为引导重建的先验。
 
 <center id='table-1'>
   <table>
     <tr>
       <td rowspan='2'><strong>输入</strong></td>
       <td>训练</td>
-      <td>1 vs. muti RGB<br/>三维GT<br/>分割</td>
+      <td>1 vs. muti RGB<br/>三维GT，分割</td>
       <td rowspan='2'>单个 vs 多个物体<br/>一致的 vs 混乱的背景</td>
     </tr>
     <tr>
@@ -105,6 +94,13 @@
   表1 - 基于深度学习的图像三维物体重建分类方法
 </center><br/>
 
+&emsp;&emsp;这个调查根据 **输入$I$**、**输出的表示**、**在训练和测试中使用深度神经网络结构来近似预测因子$f$**、**使用的训练方法** 和 **他们的监督** 的性质来讨论和分类当前的技术状态，见[表1](#table-1)查看一个可视化的摘要。特别地，输入$I$可以为
+  - 单幅图像
+  - 使用RGB相机拍摄的多幅图像，其内部和外部参数可以是已知的，也可以是未知的
+  - 一段视频序列(e.g.具有时间相关性的图像序列)  
+
+第一种情况非常具有挑战性，因为三维重建的模糊性。当输入是视频流时，可以利用时间相关性来实现三维重建，同时确保重建视频流的所有帧是平滑和一致的。此外，输入可以描绘一个或多个属于已知或未知形状类别的3D对象。它还可以包含额外的信息，如轮廓、分割掩码和语义标签，作为引导重建的先验。
+
 &emsp;&emsp;*输出的表示* 对网络体系结构的选择至关重要。这也影响了重建的计算效率和质量。特别地
 
   - **体素表示** 在早期基于深度学习的三维重建技术中被广泛采用，允许使用规则体素网格对三维形状进行参数化。因此，在图像分析中使用的2D卷积可以很容易地扩展到3D。然而，它们在内存需求方面非常昂贵，而且只有少数技术可以达到亚体素精度。
@@ -132,7 +128,7 @@
   - 三维模型及其对应的二维图像需要被映射到潜在空间的同一点上。这将确保表示是不模糊的，从而有助于重建。
 
 前两个条件已经通过使用将输入映射到离散([Section 3.1](#section-3.1))或连续([Section 3.2](#section-3.2))的潜在空间的编码器解决。它们可以是平整的，也可以是层次化的([Section 3.3](#section-3.3))。第三点通过使用分离表示`disentangled representations`([Section 3.4](#section-3.4))解决。最后一点已经通过在训练阶段使用TL结构来解决。这在[Section 7.3.1](#section-7.3.1)中作为文献中使用的许多训练机制之一进行了介绍。[表2](#table-2)总结了这种分类法。
-
+<br/><br/><br/><br/><br/><br/>
 <center id='table-2'>
   <table>
     <tr>
@@ -774,16 +770,16 @@ $$CE=\frac{1}{N}\sum_{i=1}^N\{p_ilog\hat p_i+(1-p_i)log(1-\hat p_i)\} \tag{17}$$
 
 &emsp;&emsp;早期的研究大多采用体素表示[[4]](#cite-4)[[7]](#cite-7)[[17]](#cite-17)[[25]](#cite-25)[[156]](#cite-156)，它既能表示任意拓扑复杂物体的表面细节，又能表示其内部细节。随着诸如 O-CNN[[32]](#cite-32)、OGN[[33]](#cite-33)和OctNet[[41]](#cite-41)等空间分割技术的引入，体素技术可以获得相对较高的分辨率，例如 $512^3$。这是由于内存效率的显著提高。例如，[[33]](#cite-33)的OGN将大小为 $32^3$ 的体素栅格的重建所需的内存从 [[7]](#cite-7) 中的4.5GB和 [[12]](#cite-12) 中的1.7GB减少到只有0.29GB(见[表6](#fig-6)。然而只有少数论文，例如[[35]](#cite-35)，采用了这些技术，因为其实现的复杂性。为实现高分辨率的三维体素重建，最近的许多论文都使用了中间结果，通过多个深度图，然后是体素[[38]](#cite-38)[[46]](#cite-46)[[51]](#cite-51)[[92]](#cite-92)或基于点的[[80]](#cite-80)融合。最近，有几篇论文开始关注学习连续符号化距离函数的机制[[39]](#cite-39)[[43]](#cite-43)或连续占用栅格[[157]](#cite-157)，这些机制在内存需求方面要求较低。它们的优点是由于它们学习了一个连续场，因此可以在所需分辨率下提取重建的三维物体。
 
+&emsp;&emsp;[图6](#fig-6)显示了自2016年以来，使用ShapeNet数据集[[3]](#cite-3)作为基准的几年来性能的演变。在大小为 $32^3$ 的体素栅格上计算的 IoU 度量上，我们可以看到在训练和/或测试时使用多个视图的方法优于仅基于单个视图的方法。此外，2017年开始出现的基于曲面技术(基于网格的[[60]](#cite-60)和基于点的[[59]](#cite-59)[[72]](#cite-72))略优于体素方法。然而，基于网格的技术仅限于与模板拓扑结构相同的零亏格曲面。
+
+&emsp;&emsp;[图6](#fig-6)显示，自Yan等人[[4]](#cite-4)于2017年的出现以来，基于2D监督的方法在性能上显著提高。然而，[图6(a)和(b)](#fig-6)的IoU曲线表明使用三维监督的方法取得了稍好的性能，这可以归因于基于2D的监督方法使用基于2D二值掩模和轮廓的损失函数。但多个三维对象可以解释相同的二维投影，这种2D到3D的模糊性可以通过使用只能重建视觉外壳(visual hull)而精度受限制的从多个视点捕获多个二元掩模[[19]](#cite-19)，或通过使用将重建的3D形状限制在有效类的流形内的对抗训练[[91]](#cite-91)[[97]](#cite-97)来解决。
+<br/><br/><br/><br/><br/><br/><br/><br/>
 <center id='table-6'>
 
   **表6**：一些有代表性的方法的性能总结。Obj：对象；Time是指以毫秒为单位的计时；U3D：为标记的3D；#params：网络参数的数目；mem：内存需求；Resol：分辨率；Bkg：背景。
   </br>
   <img src='./imgs/2019zs-table6.png'/>
 </center>
-
-&emsp;&emsp;[图6](#fig-6)显示了自2016年以来，使用ShapeNet数据集[[3]](#cite-3)作为基准的几年来性能的演变。在大小为 $32^3$ 的体素栅格上计算的 IoU 度量上，我们可以看到在训练和/或测试时使用多个视图的方法优于仅基于单个视图的方法。此外，2017年开始出现的基于曲面技术(基于网格的[[60]](#cite-60)和基于点的[[59]](#cite-59)[[72]](#cite-72))略优于体素方法。然而，基于网格的技术仅限于与模板拓扑结构相同的零亏格曲面。
-
-&emsp;&emsp;[图6](#fig-6)显示，自Yan等人[[4]](#cite-4)于2017年的出现以来，基于2D监督的方法在性能上显著提高。然而，[图6(a)和(b)](#fig-6)的IoU曲线表明使用三维监督的方法取得了稍好的性能，这可以归因于基于2D的监督方法使用基于2D二值掩模和轮廓的损失函数。但多个三维对象可以解释相同的二维投影，这种2D到3D的模糊性可以通过使用只能重建视觉外壳(visual hull)而精度受限制的从多个视点捕获多个二元掩模[[19]](#cite-19)，或通过使用将重建的3D形状限制在有效类的流形内的对抗训练[[91]](#cite-91)[[97]](#cite-97)来解决。
 
 <center id='fig-6'>
   <img src='./imgs/2019zs-fig6a.png'/>  
@@ -830,6 +826,8 @@ $$CE=\frac{1}{N}\sum_{i=1}^N\{p_ilog\hat p_i+(1-p_i)log(1-\hat p_i)\} \tag{17}$$
 
 ### <p id='cite'>参考文献</p>
 
+<p id='cite-1'>[1] R. Hartley and A. Zisserman, Multiple view geometry in computer vision. Cambridge university press, 2003</p>
+<p id='cite-2'>[2] A. Laurentini, “The visual hull concept for silhouette-based image understanding,” IEEE TPAMI, vol. 16, no. 2, pp. 150–162, 1994</p>
 <p id='cite-3'>[3] Z. Wu, S. Song, A. Khosla, F. Yu, L. Zhang, X. Tang, and J. Xiao, “3D shapenets: A deep representation for volumetric shapes,” in IEEE CVPR, 2015, pp. 1912–1920.</p>
 <p id='cite-4'>[4] X. Yan, J. Yang, E. Yumer, Y. Guo, and H. Lee, “Perspective Transformer Nets: Learning single-view 3D object reconstruction without 3D supervision,” in NIPS, 2016, pp. 1696–1704.</p>
 <p id='cite-5'>[5] E. Grant, P. Kohli, and M. van Gerven, “Deep disentangled representations for volumetric reconstruction,” in ECCV, 2016, pp. 266–279.</p>
